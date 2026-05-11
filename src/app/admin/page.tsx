@@ -10,7 +10,7 @@ import { uploadVehicleImage } from "@/lib/storage";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
 
-type Tab = "overview" | "vehicles" | "rentals" | "sales" | "users";
+type Tab = "overview" | "vehicles" | "rentals" | "sales" | "users" | "logs";
 
 const BLANK = {
   make: "", model: "", year: new Date().getFullYear(), type: "rental",
@@ -26,8 +26,6 @@ const NAV_ITEMS: { key: Tab; icon: string; label: string }[] = [
   { key: "users",     icon: "👥", label: "Users"     },
   { key: "logs",      icon: "📜", label: "Activity Logs" },
 ];
-
-type Tab = "overview" | "vehicles" | "rentals" | "sales" | "users" | "logs";
 
 export default function AdminPage() {
   const router = useRouter();
