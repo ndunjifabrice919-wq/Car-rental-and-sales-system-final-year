@@ -68,7 +68,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Links */}
-          <div style={desktopLinks}>
+          <div style={desktopLinks} className="desktop-only">
             {links.map((link) => (
               <Link key={link.href} href={link.href}
                 style={{ ...linkBase, color: isActive(link.href) ? "var(--white)" : "var(--white-muted)", background: isActive(link.href) ? "var(--navy-light)" : "transparent", ...(link.href === "/admin" ? { color: "var(--red)", background: "rgba(230,57,70,0.1)" } : {}) }}>
@@ -78,7 +78,7 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Auth + Lang */}
-          <div style={authArea}>
+          <div style={authArea} className="desktop-only">
             <LangToggle />
             {user ? (
               <>
@@ -97,7 +97,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Hamburger */}
-          <button style={hamburger} onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
+          <button style={hamburger} className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
             <span style={bar(menuOpen, 0)} />
             <span style={bar(menuOpen, 1)} />
             <span style={bar(menuOpen, 2)} />
@@ -152,7 +152,6 @@ const logoStyle: React.CSSProperties = {
 };
 const desktopLinks: React.CSSProperties = {
   display: "flex", gap: "4px", alignItems: "center", flex: 1,
-  "@media (max-width: 768px)": { display: "none" } as any,
 };
 const linkBase: React.CSSProperties = {
   padding: "7px 14px", borderRadius: "8px", fontSize: "0.88rem",
@@ -184,7 +183,6 @@ const redBtnLink: React.CSSProperties = {
 const hamburger: React.CSSProperties = {
   display: "none", flexDirection: "column", gap: "5px", background: "transparent",
   border: "none", cursor: "pointer", padding: "4px",
-  "@media (max-width: 900px)": { display: "flex" } as any,
 };
 const bar = (open: boolean, i: number): React.CSSProperties => ({
   display: "block", width: "22px", height: "2px", background: "var(--white)",

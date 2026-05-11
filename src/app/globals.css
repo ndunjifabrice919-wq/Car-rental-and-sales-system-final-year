@@ -439,3 +439,10 @@ textarea {
     font-size: 0.9rem;
   }
 }
+
+@media (max-width: 768px) {
+  .hero h1 { font-size: 2.2rem; }
+  .grid { grid-template-columns: 1fr; }
+  .desktop-only { display: none !important; }
+  .hamburger { display: flex !important; }
+}
