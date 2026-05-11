@@ -135,7 +135,7 @@ export default function RentPage() {
         </>
       )}
 
-      {payData && <PaymentModal data={payData} onClose={() => setPayData(null)} onSuccess={handlePaymentSuccess} />}
+      {payData && <PaymentModal amount={payData.total} description={`Rental: ${payData.vehicleName}`} onClose={() => setPayData(null)} onSuccess={handlePaymentSuccess} />}
     </div>
   );
 }
