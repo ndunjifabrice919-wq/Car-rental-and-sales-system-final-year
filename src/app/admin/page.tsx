@@ -376,7 +376,7 @@ export default function AdminPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--navy-border)" vertical={false} />
                     <XAxis dataKey="date" stroke="var(--white-muted)" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis stroke="var(--white-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `FCFA ${val / 1000}k`} />
-                    <Tooltip contentStyle={{ background: "var(--navy)", border: "1px solid var(--navy-border)", borderRadius: "8px" }} formatter={(value: number) => formatFCFA(value)} />
+                    <Tooltip contentStyle={{ background: "var(--navy)", border: "1px solid var(--navy-border)", borderRadius: "8px" }} formatter={(value: any) => formatFCFA(Number(value))} />
                     <Line type="monotone" dataKey="amount" stroke="var(--red)" strokeWidth={3} dot={{ r: 4, fill: "var(--red)" }} activeDot={{ r: 6 }} />
                   </LineChart>
                 </ResponsiveContainer>
