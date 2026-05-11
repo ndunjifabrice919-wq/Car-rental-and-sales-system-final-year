@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { CITIES_BY_REGION } from "@/lib/locations";
 import { useAuth } from "@/context/AuthContext";
 import { uploadVehicleImage } from "@/lib/storage";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { format, parseISO } from "date-fns";
 
 type Tab = "overview" | "vehicles" | "rentals" | "sales" | "users";
 
@@ -22,7 +24,10 @@ const NAV_ITEMS: { key: Tab; icon: string; label: string }[] = [
   { key: "rentals",   icon: "📅", label: "Rentals"   },
   { key: "sales",     icon: "💰", label: "Sales"     },
   { key: "users",     icon: "👥", label: "Users"     },
+  { key: "logs",      icon: "📜", label: "Activity Logs" },
 ];
+
+type Tab = "overview" | "vehicles" | "rentals" | "sales" | "users" | "logs";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -43,6 +48,31 @@ export default function AdminPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  const chartData = useMemo(() => {
+    const data: Record<string, number> = {};
+    const allTransactions = [
+      ...rentals.map(r => ({ date: r.created_at?.split("T")[0], amount: r.total_price || 0 })),
+      ...sales.map(s => ({ date: s.created_at?.split("T")[0], amount: s.sale_price || 0 }))
+    ];
+    allTransactions.forEach(t => {
+      if (!t.date) return;
+      if (!data[t.date]) data[t.date] = 0;
+      data[t.date] += t.amount;
+    });
+    return Object.entries(data).sort((a,b) => a[0].localeCompare(b[0])).slice(-14).map(([date, amount]) => ({
+      date: format(parseISO(date), "MMM dd"),
+      amount
+    }));
+  }, [rentals, sales]);
+
+  const activityLogs = useMemo(() => {
+    const logs: any[] = [];
+    rentals.forEach(r => logs.push({ id: `r-${r.id}`, type: "rental", text: `${r.profiles?.full_name || "Customer"} booked ${r.vehicles?.make} ${r.vehicles?.model}`, date: r.created_at, color: "#34d399" }));
+    sales.forEach(s => logs.push({ id: `s-${s.id}`, type: "sale", text: `${s.profiles?.full_name || "Customer"} bought ${s.vehicles?.make} ${s.vehicles?.model}`, date: s.created_at, color: "#60a5fa" }));
+    vehicles.forEach(v => logs.push({ id: `v-${v.id}`, type: "vehicle", text: `Vehicle added: ${v.make} ${v.model}`, date: v.created_at, color: "var(--white)" }));
+    return logs.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 50);
+  }, [rentals, sales, vehicles]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -338,6 +368,25 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+
+            {/* REVENUE GRAPH */}
+            <div style={{ background: "var(--navy-mid)", border: "1px solid var(--navy-border)", borderRadius: "12px", padding: "20px", marginBottom: "28px", height: "300px" }}>
+              <h3 style={{ marginBottom: "14px", fontSize: "0.95rem" }}>Revenue Trend (Last 14 Days)</h3>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--navy-border)" vertical={false} />
+                    <XAxis dataKey="date" stroke="var(--white-muted)" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--white-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `FCFA ${val / 1000}k`} />
+                    <Tooltip contentStyle={{ background: "var(--navy)", border: "1px solid var(--navy-border)", borderRadius: "8px" }} formatter={(value: number) => formatFCFA(value)} />
+                    <Line type="monotone" dataKey="amount" stroke="var(--red)" strokeWidth={3} dot={{ r: 4, fill: "var(--red)" }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--white-muted)", fontSize: "0.85rem" }}>No revenue data yet</div>
+              )}
+            </div>
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               {[
                 { title: "Recent Rentals", items: rentals.slice(0, 5), render: (r: any) => (<><span>{r.vehicles?.make} {r.vehicles?.model}</span><span style={{ color: "var(--white-muted)", fontSize: "0.8rem" }}>{formatFCFA(r.total_price)}</span></>) },
@@ -401,13 +450,18 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                   <span className={`badge badge-${r.status}`}>{r.status}</span>
-                  <select value={r.status} onChange={e => updateRentalStatus(r.id, e.target.value)}
-                    style={{ padding: "7px 10px", fontSize: "0.82rem", borderRadius: "8px" }}>
-                    <option value="pending">Pending</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
+                  {r.status === "pending" && (
+                    <>
+                      <button onClick={() => updateRentalStatus(r.id, "active")} style={{ background: "rgba(52,211,153,0.15)", color: "#34d399", border: "1px solid rgba(52,211,153,0.3)", padding: "7px 14px", fontSize: "0.82rem" }}>Approve</button>
+                      <button onClick={() => updateRentalStatus(r.id, "cancelled")} style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)", padding: "7px 14px", fontSize: "0.82rem" }}>Decline</button>
+                    </>
+                  )}
+                  {r.status === "active" && (
+                    <button onClick={() => updateRentalStatus(r.id, "completed")} style={{ background: "rgba(96,165,250,0.15)", color: "#60a5fa", border: "1px solid rgba(96,165,250,0.3)", padding: "7px 14px", fontSize: "0.82rem" }}>Mark Completed</button>
+                  )}
+                  {r.status !== "pending" && r.status !== "active" && (
+                    <span style={{ fontSize: "0.82rem", color: "var(--white-muted)", padding: "7px 14px" }}>No actions</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -471,6 +525,31 @@ export default function AdminPage() {
                   </div>
                 );
               })}
+          </div>
+        )}
+
+        {/* ── ACTIVITY LOGS ── */}
+        {tab === "logs" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ background: "var(--navy-mid)", border: "1px solid var(--navy-border)", borderRadius: "12px", padding: "20px" }}>
+              <h3 style={{ marginBottom: "16px", fontSize: "1rem" }}>Platform Timeline</h3>
+              {activityLogs.length === 0 ? <p style={{ color: "var(--white-muted)" }}>No activity recorded yet.</p> : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {activityLogs.map((log, i) => (
+                    <div key={log.id} style={{ display: "flex", gap: "14px", position: "relative", paddingBottom: i !== activityLogs.length - 1 ? "14px" : "0" }}>
+                      {i !== activityLogs.length - 1 && <div style={{ position: "absolute", left: "6px", top: "24px", bottom: 0, width: "2px", background: "var(--navy-border)" }} />}
+                      <div style={{ width: "14px", height: "14px", borderRadius: "50%", background: log.color, marginTop: "4px", flexShrink: 0, zIndex: 2 }} />
+                      <div>
+                        <p style={{ margin: "0 0 2px", fontSize: "0.9rem" }}>{log.text}</p>
+                        <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--white-muted)" }}>
+                          {format(new Date(log.date), "MMM dd, yyyy · HH:mm")}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
