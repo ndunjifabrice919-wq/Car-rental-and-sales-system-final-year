@@ -139,50 +139,53 @@ export default function Navbar() {
 /* ── Styles ── */
 const navBase: React.CSSProperties = {
   position: "sticky", top: 0, zIndex: 1000,
-  background: "rgba(13, 27, 42, 0.97)", backdropFilter: "blur(14px)",
+  background: "rgba(13, 27, 42, 0.98)", backdropFilter: "blur(20px)",
   borderBottom: "1px solid var(--navy-border)", transition: "box-shadow 0.3s ease",
 };
 const navInner: React.CSSProperties = {
-  maxWidth: "1200px", margin: "0 auto", padding: "0 24px", height: "68px",
+  maxWidth: "1200px", margin: "0 auto", padding: "0 24px", height: "70px",
   display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px",
 };
 const logoStyle: React.CSSProperties = {
-  fontSize: "1.45rem", fontWeight: 900, letterSpacing: "-0.04em",
+  fontSize: "1.55rem", fontWeight: 900, letterSpacing: "-0.05em",
   color: "var(--white)", textDecoration: "none", flexShrink: 0,
 };
 const desktopLinks: React.CSSProperties = {
-  display: "flex", gap: "4px", alignItems: "center", flex: 1,
+  display: "flex", gap: "2px", alignItems: "center", flex: 1, padding: "0 8px",
 };
 const linkBase: React.CSSProperties = {
-  padding: "7px 14px", borderRadius: "8px", fontSize: "0.88rem",
+  padding: "7px 13px", borderRadius: "8px", fontSize: "0.87rem",
   fontWeight: 500, transition: "color 0.2s, background 0.2s",
   textDecoration: "none", whiteSpace: "nowrap",
 };
-const authArea: React.CSSProperties = { display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 };
+const authArea: React.CSSProperties = { display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 };
 const avatarBadge: React.CSSProperties = {
-  width: "34px", height: "34px", borderRadius: "50%", background: "var(--red)",
+  width: "36px", height: "36px", borderRadius: "50%", background: "var(--red)",
   display: "flex", alignItems: "center", justifyContent: "center",
-  fontWeight: 700, fontSize: "0.9rem", cursor: "pointer", flexShrink: 0,
+  fontWeight: 800, fontSize: "0.88rem", cursor: "pointer", flexShrink: 0,
+  boxShadow: "0 0 0 2px rgba(230,57,70,0.3)",
 };
 const outlineBtn: React.CSSProperties = {
-  padding: "8px 16px", background: "transparent", border: "1.5px solid var(--navy-border)",
-  color: "var(--white)", borderRadius: "8px", fontSize: "0.85rem", fontWeight: 500, cursor: "pointer",
+  padding: "7px 15px", background: "transparent", border: "1.5px solid var(--navy-border)",
+  color: "var(--white-muted)", borderRadius: "8px", fontSize: "0.84rem", fontWeight: 500, cursor: "pointer",
 };
 const redBtn: React.CSSProperties = {
-  padding: "8px 18px", background: "var(--red)", border: "none",
-  color: "var(--white)", borderRadius: "8px", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer",
+  padding: "7px 16px", background: "var(--red)", border: "none",
+  color: "var(--white)", borderRadius: "8px", fontSize: "0.84rem", fontWeight: 600, cursor: "pointer",
 };
 const outlineBtnLink: React.CSSProperties = {
-  padding: "8px 16px", background: "transparent", border: "1.5px solid var(--navy-border)",
-  color: "var(--white)", borderRadius: "8px", fontSize: "0.85rem", fontWeight: 500, textDecoration: "none",
+  padding: "7px 15px", background: "transparent", border: "1.5px solid var(--navy-border)",
+  color: "var(--white-muted)", borderRadius: "8px", fontSize: "0.84rem", fontWeight: 500, textDecoration: "none",
+  display: "inline-flex", alignItems: "center",
 };
 const redBtnLink: React.CSSProperties = {
-  padding: "8px 18px", background: "var(--red)", color: "var(--white)",
-  borderRadius: "8px", fontSize: "0.85rem", fontWeight: 600, textDecoration: "none",
+  padding: "7px 16px", background: "var(--red)", color: "var(--white)",
+  borderRadius: "8px", fontSize: "0.84rem", fontWeight: 600, textDecoration: "none",
+  display: "inline-flex", alignItems: "center",
 };
 const hamburger: React.CSSProperties = {
   display: "none", flexDirection: "column", gap: "5px", background: "transparent",
-  border: "none", cursor: "pointer", padding: "4px",
+  border: "none", cursor: "pointer", padding: "6px", borderRadius: "8px",
 };
 const bar = (open: boolean, i: number): React.CSSProperties => ({
   display: "block", width: "22px", height: "2px", background: "var(--white)",
@@ -191,12 +194,14 @@ const bar = (open: boolean, i: number): React.CSSProperties => ({
   opacity: open && i === 1 ? 0 : 1,
 });
 const mobileMenu: React.CSSProperties = {
-  position: "fixed", top: "68px", left: 0, right: 0, zIndex: 999,
-  background: "var(--navy-mid)", borderBottom: "1px solid var(--navy-border)",
-  padding: "12px 20px 20px", display: "flex", flexDirection: "column", gap: "4px",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+  position: "fixed", top: "70px", left: 0, right: 0, zIndex: 999,
+  background: "rgba(27,43,59,0.98)", backdropFilter: "blur(20px)",
+  borderBottom: "1px solid var(--navy-border)",
+  padding: "14px 20px 24px", display: "flex", flexDirection: "column", gap: "4px",
+  boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
 };
 const mobileLinkBase: React.CSSProperties = {
-  padding: "12px 16px", borderRadius: "10px", fontSize: "0.95rem",
+  padding: "13px 16px", borderRadius: "10px", fontSize: "0.95rem",
   fontWeight: 500, textDecoration: "none", display: "flex", alignItems: "center",
+  transition: "background 0.15s",
 };
