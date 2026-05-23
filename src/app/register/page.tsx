@@ -54,7 +54,7 @@ export default function RegisterPage() {
     router.push("/auth/check-email?email=" + encodeURIComponent(email));
   };
 
-  const handleOAuth = async (provider: "google" | "apple") => {
+  const handleOAuth = async (provider: "google") => {
     setOauthLoading(provider);
     setError("");
     const { error } = await supabase.auth.signInWithOAuth({
@@ -95,21 +95,6 @@ export default function RegisterPage() {
               </svg>
             )}
             {oauthLoading === "google" ? "Connecting…" : "Sign up with Google"}
-          </button>
-
-          <button
-            onClick={() => handleOAuth("apple")}
-            disabled={!!oauthLoading || loading}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", width: "100%", padding: "12px", background: "var(--navy-light)", border: "1.5px solid var(--navy-border)", color: "var(--white)", borderRadius: "10px", cursor: "pointer", fontSize: "0.92rem", fontWeight: 600, transition: "border-color 0.2s, background 0.2s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#fff"; (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--navy-border)"; (e.currentTarget as HTMLButtonElement).style.background = "var(--navy-light)"; }}
-          >
-            {oauthLoading === "apple" ? <div className="spinner" style={{ width: "18px", height: "18px" }} /> : (
-              <svg width="18" height="18" viewBox="0 0 814 1000" fill="white">
-                <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-43.4-150.3-107.1C67.3 742.5 .4 562.4 .4 390.7c0-283.7 182.2-430 360.5-430 96.3 0 176.4 63.8 236.7 63.8 58.8 0 151-67.8 260.5-67.8 42.4 0 182.6 4.4 244.8 174.5zM534.6 45.8C555 21.5 571.7-10.9 571.7-43.2c0-4.5-.4-9.1-.7-13.8-33.2 1.3-73.3 21.8-97.7 47.6-20.5 22.2-40.8 57.5-40.8 89.8 0 4.5.7 9.1 1 13.8 3.2.4 6.5.4 9.7.4 29.9.1 67.3-19.3 91.4-48.8z"/>
-              </svg>
-            )}
-            {oauthLoading === "apple" ? "Connecting…" : "Sign up with Apple"}
           </button>
         </div>
 
