@@ -35,7 +35,10 @@ export default function RegisterPage() {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, phone } },
+      options: {
+        data: { full_name: fullName, phone },
+        emailRedirectTo: `${window.location.origin}/auth/confirmed`,
+      },
     });
 
     if (signUpError) { setError(signUpError.message); setLoading(false); return; }
@@ -45,8 +48,10 @@ export default function RegisterPage() {
     }
 
     setLoading(false);
-    await supabase.auth.signInWithPassword({ email, password });
-    router.push("/");
+    // Show email confirmation prompt instead of auto-login
+    setError("");
+    // Redirect to a page that tells them to check email
+    router.push("/auth/check-email?email=" + encodeURIComponent(email));
   };
 
   const handleOAuth = async (provider: "google" | "apple") => {

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { calculateRentalPrice, type RentalPriceResult } from "@/lib/pricing";
 import PaymentModal from "@/components/ui/PaymentModal";
+import ReauthModal from "@/components/ui/ReauthModal";
 import VerificationGate from "@/components/ui/VerificationGate";
 import { CITIES_BY_REGION } from "@/lib/locations";
 import { useLang } from "@/context/LangContext";
@@ -38,6 +39,7 @@ export default function RentPage() {
   const [sortBy, setSortBy] = useState("newest");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [payData, setPayData] = useState<{ vehicleId: string; vehicleName: string; userId: string; userEmail: string; userName: string; startDate: string; endDate: string; total: number } | null>(null);
+  const [pendingPayData, setPendingPayData] = useState<typeof payData>(null);
   const [verGate, setVerGate] = useState<{ missing: string[] } | null>(null);
 
   useEffect(() => {
@@ -107,7 +109,8 @@ export default function RentPage() {
     const { data: conflict } = await supabase.from("rentals").select("id").eq("vehicle_id", v.id).in("status", ["pending", "active"]).lte("start_date", endDate).gte("end_date", startDate);
     if (conflict && conflict.length > 0) { alert("This vehicle is not available for the selected dates. Please choose different dates."); return; }
 
-    setPayData({ vehicleId: v.id, vehicleName: `${v.make} ${v.model}`, userId: session.user.id, userEmail: session.user.email || "", userName: prof?.full_name || session.user.email || "Customer", startDate, endDate, total });
+    // All checks passed — show Reauth OTP modal first
+    setPendingPayData({ vehicleId: v.id, vehicleName: `${v.make} ${v.model}`, userId: session.user.id, userEmail: session.user.email || "", userName: prof?.full_name || session.user.email || "Customer", startDate, endDate, total });
   };
 
   const hasActiveFilters = !!(search || fuelFilter || transFilter || maxPrice || cityFilter);
@@ -193,6 +196,14 @@ export default function RentPage() {
         </div>
       )}
 
+      {/* Reauth OTP step */}
+      {pendingPayData && (
+        <ReauthModal
+          userEmail={pendingPayData.userEmail}
+          onSuccess={() => { setPayData(pendingPayData); setPendingPayData(null); }}
+          onClose={() => setPendingPayData(null)}
+        />
+      )}
       {payData && <PaymentModal amount={payData.total} description={`Rental: ${payData.vehicleName}`} onClose={() => setPayData(null)} onSuccess={handlePaymentSuccess} />}
       {verGate && <VerificationGate missing={verGate.missing} context="rental" onClose={() => setVerGate(null)} />}
     </div>

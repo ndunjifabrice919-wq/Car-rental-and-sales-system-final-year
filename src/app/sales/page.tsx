@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { calculateSalePrice, type SalePriceResult } from "@/lib/pricing";
 import PaymentModal from "@/components/ui/PaymentModal";
+import ReauthModal from "@/components/ui/ReauthModal";
 import VerificationGate from "@/components/ui/VerificationGate";
 import { CITIES_BY_REGION } from "@/lib/locations";
 import { useLang } from "@/context/LangContext";
@@ -38,6 +39,7 @@ export default function SalesPage() {
   const [sortBy, setSortBy] = useState("newest");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [payData, setPayData] = useState<{ vehicle: any; adjustedPrice: number; userId: string; userEmail: string; userName: string } | null>(null);
+  const [pendingPayData, setPendingPayData] = useState<typeof payData>(null);
   const [verGate, setVerGate] = useState<{ missing: string[] } | null>(null);
 
   useEffect(() => {
@@ -90,7 +92,8 @@ export default function SalesPage() {
 
     if (missing.length > 0) { setVerGate({ missing }); return; }
 
-    setPayData({ vehicle: v, adjustedPrice, userId: session.user.id, userEmail: session.user.email || "", userName: prof?.full_name || session.user.email || "Customer" });
+    // All checks passed — show Reauth OTP modal first
+    setPendingPayData({ vehicle: v, adjustedPrice, userId: session.user.id, userEmail: session.user.email || "", userName: prof?.full_name || session.user.email || "Customer" });
   };
 
   const handlePaymentSuccess = async () => {
@@ -183,6 +186,13 @@ export default function SalesPage() {
         </div>
       )}
 
+      {pendingPayData && (
+        <ReauthModal
+          userEmail={pendingPayData.userEmail}
+          onSuccess={() => { setPayData(pendingPayData); setPendingPayData(null); }}
+          onClose={() => setPendingPayData(null)}
+        />
+      )}
       {payData && (
         <PaymentModal
           amount={payData.adjustedPrice}

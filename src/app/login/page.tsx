@@ -100,6 +100,7 @@ export default function LoginPage() {
           <div className="form-group">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
               <label className="form-label" style={{ margin: 0 }}>Password</label>
+              <Link href="/auth/forgot-password" style={{ color: "var(--red)", fontSize: "0.78rem", fontWeight: 600 }}>Forgot password?</Link>
             </div>
             <div style={{ position: "relative" }}>
               <input type={showPassword ? "text" : "password"} placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" style={{ paddingRight: "44px" }} />
@@ -117,6 +118,10 @@ export default function LoginPage() {
         <div className="auth-footer">
           Don&apos;t have an account?{" "}
           <Link href="/register">Create one free</Link>
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: "14px" }}>
+          <Link href="/auth/otp" style={{ color: "var(--white-muted)", fontSize: "0.82rem" }}>Sign in with a one-time code instead →</Link>
         </div>
 
         <p style={{ textAlign: "center", color: "var(--white-muted)", fontSize: "0.72rem", marginTop: "20px", lineHeight: 1.7 }}>
