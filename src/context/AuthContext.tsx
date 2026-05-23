@@ -8,6 +8,10 @@ interface Profile {
   full_name: string | null;
   phone: string | null;
   role: "customer" | "admin" | "owner";
+  id_type?: string | null;
+  id_number?: string | null;
+  id_document_url?: string | null;
+  verification_status?: "unverified" | "pending" | "verified" | null;
 }
 
 interface AuthContextType {

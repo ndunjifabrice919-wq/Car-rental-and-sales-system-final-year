@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
@@ -86,10 +86,11 @@ export default function HomePage() {
     if (!user || authLoading) return;
     setDataLoading(true);
     Promise.all([
-      supabase.from("rentals").select("total_price, start_date, end_date, status, vehicle_id, id, vehicles(make,model,image_url)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+      supabase.from("rentals").select("total_price, start_date, end_date, status, vehicle_id, id, vehicles(make,model,image_url)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
       supabase.from("sales").select("sale_price").eq("user_id", user.id),
-      supabase.from("vehicles").select("id, make, model, year, type, status, daily_rate, sale_price, fuel_type, transmission, image_url, seats, color").eq("status", "available").limit(4),
-    ]).then(([{ data: rentals }, { data: purchases }, { data: vehicles }]) => {
+      supabase.from("vehicles").select("id, make, model, year, type, status, daily_rate, sale_price, fuel_type, transmission, image_url, seats, color, location").eq("status", "available").limit(6),
+      supabase.from("profiles").select("full_name, phone, id_number, id_document_url, verification_status").eq("id", user.id).single(),
+    ]).then(([{ data: rentals }, { data: purchases }, { data: vehicles }, { data: prof }]) => {
       const rentalTotal = (rentals || []).reduce((s: number, r: any) => s + (r.total_price || 0), 0);
       const saleTotal = (purchases || []).reduce((s: number, p: any) => s + (p.sale_price || 0), 0);
       setStats({ rentals: rentals?.length || 0, purchases: purchases?.length || 0, spent: rentalTotal + saleTotal });
@@ -108,185 +109,256 @@ export default function HomePage() {
     const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
     const isNewUser = !dataLoading && stats.rentals === 0 && stats.purchases === 0;
 
+    // Profile completion
+    const profileFields = [
+      { label: "Full name", done: !!profile?.full_name?.trim() },
+      { label: "Phone number", done: !!profile?.phone?.trim() },
+      { label: "ID number", done: !!profile?.id_number },
+      { label: "ID document", done: !!profile?.id_document_url },
+    ];
+    const completedFields = profileFields.filter(f => f.done).length;
+    const completionPct = Math.round((completedFields / profileFields.length) * 100);
+
+    // Loyalty tier
+    const loyaltyTier = stats.rentals + stats.purchases >= 10 ? { label: "Platinum", color: "#60a5fa", icon: "💎" }
+      : stats.rentals + stats.purchases >= 5 ? { label: "Gold", color: "#fbbf24", icon: "⭐" }
+      : stats.rentals + stats.purchases >= 2 ? { label: "Silver", color: "#a1a1aa", icon: "🥈" }
+      : { label: "Member", color: "var(--white-muted)", icon: "🚗" };
+
+    // Upcoming rentals
+    const today = new Date().toISOString().split("T")[0];
+    const upcoming = recentRentals.filter((r: any) => r.start_date >= today && (r.status === "pending" || r.status === "active"));
+    const activeRental = recentRentals.find((r: any) => r.status === "active");
+
+    // Days until next trip
+    const nextTrip = upcoming[0];
+    const daysUntil = nextTrip ? Math.ceil((new Date(nextTrip.start_date).getTime() - Date.now()) / 86400000) : null;
+
+    const verStatus = profile?.verification_status || "unverified";
+    const verComplete = verStatus === "verified" || verStatus === "pending";
+
     return (
       <div className="page animate-in">
-        {/* Greeting header */}
-        <div style={{ marginBottom: "36px" }}>
-          <h1 style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 900, marginBottom: "6px" }}>
-            {greeting}{displayName ? `, ${displayName}` : ""}! 👋
-          </h1>
-          <p style={{ color: "var(--white-muted)", margin: 0 }}>
-            Welcome {isNewUser ? "to DriveEasy" : "back to DriveEasy"} · Buea, Cameroon
-          </p>
-        </div>
 
-        {isNewUser ? (
+        {/* ── Greeting header with loyalty ── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px", flexWrap: "wrap", gap: "12px" }}>
           <div>
-            {/* Welcome banner */}
-            <div style={{ background: "linear-gradient(135deg, rgba(230,57,70,0.12) 0%, rgba(13,27,42,0) 100%)", border: "1px solid rgba(230,57,70,0.25)", borderRadius: "20px", padding: "36px", marginBottom: "32px" }} className="animate-in">
-              <p style={{ fontSize: "1.5rem", marginBottom: "8px" }}>🎉</p>
-              <h2 style={{ fontSize: "1.3rem", fontWeight: 800, margin: "0 0 10px" }}>Your account is ready!</h2>
-              <p style={{ color: "var(--white-muted)", margin: "0 0 20px", maxWidth: "500px", lineHeight: 1.7 }}>
-                Welcome to DriveEasy — Cameroon&apos;s premier vehicle rental and sales platform.
-                Rent a car for a day, or purchase one outright. All prices in FCFA, no hidden fees.
-              </p>
-              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                <button onClick={() => router.push("/rent")} style={{ padding: "12px 24px", fontWeight: 700 }}>🚗 Rent Your First Vehicle</button>
-                <button onClick={() => router.push("/sales")} style={{ padding: "12px 24px", background: "var(--navy-light)", border: "1.5px solid var(--navy-border)", color: "var(--white)" }}>🏷️ Browse Vehicles for Sale</button>
-              </div>
+            <h1 style={{ fontSize: "clamp(1.4rem, 3vw, 1.9rem)", fontWeight: 900, marginBottom: "4px" }}>
+              {greeting}{displayName ? `, ${displayName}` : ""}! 👋
+            </h1>
+            <p style={{ color: "var(--white-muted)", margin: 0, fontSize: "0.88rem" }}>
+              {isNewUser ? "Welcome to DriveEasy" : "Welcome back to DriveEasy"} · Cameroon
+            </p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            {/* Loyalty badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--navy-mid)", border: `1px solid ${loyaltyTier.color}44`, borderRadius: "100px", padding: "6px 14px" }}>
+              <span style={{ fontSize: "0.9rem" }}>{loyaltyTier.icon}</span>
+              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: loyaltyTier.color }}>{loyaltyTier.label}</span>
             </div>
-
-            {/* What you can do */}
-            <p className="section-label">Get started</p>
-            <div className="grid-3" style={{ marginBottom: "36px" }}>
-              {[
-                { icon: "🚗", title: "Rent a Vehicle", desc: "Choose a car, pick your dates, pay via Orange Money, MTN MoMo or card. Instant confirmation.", href: "/rent", btn: "Browse Rentals" },
-                { icon: "🏷️", title: "Buy a Vehicle", desc: "Browse our curated selection of vehicles for sale at honest FCFA prices.", href: "/sales", btn: "Browse Sales" },
-                { icon: "👤", title: "Complete Your Profile", desc: "Add your phone number and full name so we can reach you for pickup and delivery.", href: "/profile", btn: "Edit Profile" },
-              ].map((c, i) => (
-                <div key={c.title} className={`card animate-in-delay-${i + 1}`} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <span style={{ fontSize: "2rem" }}>{c.icon}</span>
-                  <h3 style={{ fontSize: "1rem", margin: 0 }}>{c.title}</h3>
-                  <p style={{ color: "var(--white-muted)", fontSize: "0.87rem", lineHeight: 1.6, margin: 0, flex: 1 }}>{c.desc}</p>
-                  <button onClick={() => router.push(c.href)} style={{ padding: "10px 20px", fontSize: "0.87rem", marginTop: "auto" }}>{c.btn}</button>
-                </div>
-              ))}
-            </div>
-
-            {featuredVehicles.length > 0 && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                  <p className="section-label">Available Now</p>
-                  <Link href="/rent" style={{ color: "var(--red)", fontSize: "0.85rem", fontWeight: 600 }}>Browse all →</Link>
-                </div>
-                <div className="grid-3">
-                  {featuredVehicles.map((v) => (
-                    <div key={v.id} className="card" style={{ cursor: "pointer", padding: 0, overflow: "hidden" }} onClick={() => router.push(v.type === "sale" ? "/sales" : "/rent")}>
-                      {v.image_url ? (
-                        <div className="vehicle-card-image">
-                          <img src={v.image_url} alt={`${v.make} ${v.model}`} />
-                          <div className="vehicle-card-image-overlay" />
-                          {v.daily_rate && <span className="vehicle-card-price-badge">{formatFCFA(v.daily_rate)}/day</span>}
-                        </div>
-                      ) : (
-                        <div className="vehicle-card-placeholder">🚗</div>
-                      )}
-                      <div style={{ padding: "16px" }}>
-                        <p style={{ fontWeight: 700, margin: "0 0 3px" }}>{v.make} {v.model}</p>
-                        <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>{v.year} · {v.transmission}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* Verify badge */}
+            {verStatus === "verified" && (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.3)", borderRadius: "100px", padding: "6px 14px" }}>
+                <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#34d399" }}>✓ Verified</span>
               </div>
             )}
           </div>
-        ) : (
-          /* RETURNING USER — Stats dashboard */
-          <div>
-            {/* Stats */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "36px" }}>
-              {dataLoading ? (
-                [1, 2, 3].map(i => <div key={i} className="shimmer" style={{ height: "90px" }} />)
-              ) : (
-                [
-                  { label: "My Rentals", value: stats.rentals, icon: "🚗", href: "/rentals" },
-                  { label: "My Purchases", value: stats.purchases, icon: "🏷️", href: "/sales/history" },
-                  { label: "Total Spent", value: formatFCFA(stats.spent), icon: "💰", href: "/profile" },
-                ].map((s) => (
-                  <div key={s.label} onClick={() => router.push(s.href)} className="card animate-in"
-                    style={{ cursor: "pointer" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(230,57,70,0.4)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--navy-border)")}>
-                    <p style={{ fontSize: "1.4rem", margin: "0 0 4px" }}>{s.icon}</p>
-                    <p style={{ fontSize: "1.4rem", fontWeight: 800, margin: "0 0 4px" }}>{s.value}</p>
-                    <p style={{ color: "var(--white-muted)", fontSize: "0.82rem", margin: 0 }}>{s.label}</p>
-                  </div>
-                ))
-              )}
-            </div>
+        </div>
 
-            {/* Quick Actions */}
-            <div style={{ marginBottom: "36px" }}>
-              <p className="section-label">Quick Actions</p>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                {[
-                  { label: "🚗 Rent a Vehicle", href: "/rent", primary: true },
-                  { label: "🏷️ Buy a Vehicle", href: "/sales", primary: false },
-                  { label: "📋 My Rentals", href: "/rentals", primary: false },
-                  { label: "🧾 My Purchases", href: "/sales/history", primary: false },
-                  { label: "👤 My Profile", href: "/profile", primary: false },
-                  ...(profile?.role === "admin" || profile?.role === "owner" ? [{ label: "🛡️ Admin Dashboard", href: "/admin", primary: false }] : []),
-                ].map((a) => (
-                  <button key={a.label} onClick={() => router.push(a.href)}
-                    style={{ background: a.primary ? "var(--red)" : "var(--navy-light)", color: a.primary ? "var(--white)" : "var(--white-muted)", padding: "10px 18px", fontSize: "0.87rem", fontWeight: 600, borderRadius: "10px", border: a.primary ? "none" : "1px solid var(--navy-border)", cursor: "pointer" }}>
-                    {a.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Rentals */}
-            {!dataLoading && recentRentals.length > 0 && (
-              <div style={{ marginBottom: "36px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                  <p className="section-label">Recent Rentals</p>
-                  <Link href="/rentals" style={{ color: "var(--red)", fontSize: "0.85rem", fontWeight: 600 }}>View all →</Link>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  {recentRentals.map((r) => (
-                    <div key={r.id} style={{ background: "var(--navy-mid)", border: "1px solid var(--navy-border)", borderRadius: "12px", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        {r.vehicles?.image_url ? (
-                          <img src={r.vehicles.image_url} alt="" style={{ width: "48px", height: "36px", objectFit: "cover", borderRadius: "6px" }} />
-                        ) : (
-                          <div style={{ width: "48px", height: "36px", background: "var(--navy)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>🚗</div>
-                        )}
-                        <div>
-                          <p style={{ fontWeight: 600, margin: "0 0 3px", fontSize: "0.95rem" }}>{r.vehicles?.make} {r.vehicles?.model}</p>
-                          <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>
-                            {new Date(r.start_date).toLocaleDateString("fr-CM")} → {new Date(r.end_date).toLocaleDateString("fr-CM")}
-                          </p>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                        <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{formatFCFA(r.total_price)}</span>
-                        <span className={`badge badge-${r.status}`}>{r.status}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {/* ── Active rental banner ── */}
+        {!dataLoading && activeRental && (
+          <div style={{ background: "linear-gradient(135deg, rgba(52,211,153,0.1), rgba(13,27,42,0))", border: "1px solid rgba(52,211,153,0.3)", borderRadius: "16px", padding: "20px 24px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+            {activeRental.vehicles?.image_url && (
+              <img src={activeRental.vehicles.image_url} alt="" loading="lazy" decoding="async" style={{ width: "64px", height: "46px", objectFit: "cover", borderRadius: "8px", flexShrink: 0 }} />
             )}
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 800, margin: "0 0 3px", color: "#34d399", fontSize: "0.82rem", textTransform: "uppercase", letterSpacing: "0.07em" }}>🟢 Active Rental</p>
+              <p style={{ fontWeight: 700, margin: "0 0 2px", fontSize: "1rem" }}>{activeRental.vehicles?.make} {activeRental.vehicles?.model}</p>
+              <p style={{ color: "var(--white-muted)", fontSize: "0.82rem", margin: 0 }}>
+                {new Date(activeRental.start_date).toLocaleDateString("fr-CM")} → {new Date(activeRental.end_date).toLocaleDateString("fr-CM")}
+              </p>
+            </div>
+            <button onClick={() => router.push("/rentals")} style={{ background: "rgba(52,211,153,0.15)", color: "#34d399", border: "1px solid rgba(52,211,153,0.3)", padding: "9px 18px", fontSize: "0.84rem", fontWeight: 600 }}>View Details →</button>
+          </div>
+        )}
 
-            {/* Available Vehicles */}
-            {!dataLoading && featuredVehicles.length > 0 && (
+        {/* ── Upcoming trip countdown ── */}
+        {!dataLoading && nextTrip && daysUntil !== null && daysUntil >= 0 && (
+          <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: "14px", padding: "16px 20px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "14px" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(251,191,36,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", flexShrink: 0 }}>📅</div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: "0.95rem" }}>
+                {daysUntil === 0 ? "Your rental starts TODAY!" : `Trip in ${daysUntil} day${daysUntil !== 1 ? "s" : ""}`}
+              </p>
+              <p style={{ color: "var(--white-muted)", fontSize: "0.82rem", margin: 0 }}>
+                {nextTrip.vehicles?.make} {nextTrip.vehicles?.model} · {new Date(nextTrip.start_date).toLocaleDateString("fr-CM")}
+              </p>
+            </div>
+            <span className="badge badge-pending" style={{ flexShrink: 0 }}>{nextTrip.status}</span>
+          </div>
+        )}
+
+        {/* ── KYC soft reminder (not a blocker) ── */}
+        {!dataLoading && !verComplete && (stats.rentals > 0 || completedFields < 2) && (
+          <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: "14px", padding: "14px 20px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "1.3rem" }}>🛡️</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: "0.9rem", color: "#fbbf24" }}>Complete Identity Verification</p>
+              <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>Required for renting or buying a vehicle. Keeps your bookings secure.</p>
+            </div>
+            <button onClick={() => router.push("/profile?tab=verification")} style={{ background: "rgba(251,191,36,0.12)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)", padding: "8px 16px", fontSize: "0.82rem", fontWeight: 600 }}>Verify Now →</button>
+          </div>
+        )}
+
+        {/* ── Profile completion progress ── */}
+        {!dataLoading && completionPct < 100 && (
+          <div className="card" style={{ marginBottom: "28px", padding: "20px 24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                  <p className="section-label">Available Now</p>
-                  <Link href="/rent" style={{ color: "var(--red)", fontSize: "0.85rem", fontWeight: 600 }}>Browse all →</Link>
-                </div>
-                <div className="grid-3">
-                  {featuredVehicles.map((v) => (
-                    <div key={v.id} className="card" style={{ cursor: "pointer", padding: 0, overflow: "hidden" }} onClick={() => router.push(v.type === "sale" ? "/sales" : "/rent")}>
-                      {v.image_url ? (
-                        <div className="vehicle-card-image">
-                          <img src={v.image_url} alt={`${v.make} ${v.model}`} />
-                          <div className="vehicle-card-image-overlay" />
-                          {v.daily_rate && <span className="vehicle-card-price-badge">{formatFCFA(v.daily_rate)}/day</span>}
-                        </div>
-                      ) : (
-                        <div className="vehicle-card-placeholder">🚗</div>
-                      )}
-                      <div style={{ padding: "16px" }}>
-                        <p style={{ fontWeight: 700, margin: "0 0 3px" }}>{v.make} {v.model}</p>
-                        <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>{v.year} · {v.transmission}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <p style={{ fontWeight: 700, margin: "0 0 2px", fontSize: "0.95rem" }}>Profile Completion</p>
+                <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>Complete your profile to unlock all features</p>
               </div>
+              <span style={{ fontWeight: 800, fontSize: "1.1rem", color: completionPct === 100 ? "#34d399" : completionPct >= 50 ? "#fbbf24" : "var(--red)" }}>{completionPct}%</span>
+            </div>
+            <div style={{ height: "6px", background: "var(--navy-border)", borderRadius: "100px", overflow: "hidden", marginBottom: "14px" }}>
+              <div style={{ height: "100%", width: `${completionPct}%`, background: completionPct === 100 ? "#34d399" : completionPct >= 50 ? "#fbbf24" : "var(--red)", borderRadius: "100px", transition: "width 1s ease" }} />
+            </div>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {profileFields.map(f => (
+                <span key={f.label} style={{ display: "flex", alignItems: "center", gap: "5px", background: f.done ? "rgba(52,211,153,0.08)" : "var(--navy)", border: `1px solid ${f.done ? "rgba(52,211,153,0.2)" : "var(--navy-border)"}`, borderRadius: "100px", padding: "3px 10px", fontSize: "0.72rem", color: f.done ? "#34d399" : "var(--white-muted)" }}>
+                  {f.done ? "✓" : "○"} {f.label}
+                </span>
+              ))}
+            </div>
+            {completionPct < 100 && (
+              <button onClick={() => router.push("/profile?tab=" + (completedFields < 2 ? "profile" : "verification"))} style={{ marginTop: "14px", alignSelf: "flex-start", padding: "9px 20px", fontSize: "0.85rem" }}>
+                Complete Profile →
+              </button>
             )}
+          </div>
+        )}
+
+        {/* ── Stats ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "14px", marginBottom: "28px" }}>
+          {dataLoading ? (
+            [1, 2, 3].map(i => <div key={i} className="shimmer" style={{ height: "90px", borderRadius: "12px" }} />)
+          ) : [
+            { label: "My Rentals", value: stats.rentals, icon: "🚗", href: "/rentals", color: "var(--white)" },
+            { label: "My Purchases", value: stats.purchases, icon: "🏷️", href: "/sales/history", color: "#60a5fa" },
+            { label: "Total Spent", value: formatFCFA(stats.spent), icon: "💰", href: "/profile", color: "var(--red)" },
+          ].map(s => (
+            <div key={s.label} onClick={() => router.push(s.href)} className="card animate-in"
+              style={{ cursor: "pointer", textAlign: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(230,57,70,0.4)")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--navy-border)")}>
+              <p style={{ fontSize: "1.3rem", margin: "0 0 4px" }}>{s.icon}</p>
+              <p style={{ fontSize: "1.35rem", fontWeight: 800, margin: "0 0 4px", color: s.color }}>{s.value}</p>
+              <p style={{ color: "var(--white-muted)", fontSize: "0.78rem", margin: 0 }}>{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Quick Actions ── */}
+        <div style={{ marginBottom: "32px" }}>
+          <p className="section-label">Quick Actions</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "10px" }}>
+            {[
+              { icon: "🚗", label: "Rent", href: "/rent", primary: true },
+              { icon: "🏷️", label: "Buy", href: "/sales", primary: false },
+              { icon: "📋", label: "My Rentals", href: "/rentals", primary: false },
+              { icon: "🧾", label: "Purchases", href: "/sales/history", primary: false },
+              { icon: "👤", label: "Profile", href: "/profile", primary: false },
+              { icon: "🛡️", label: "Verify ID", href: "/profile?tab=verification", primary: false },
+              ...(profile?.role === "admin" || profile?.role === "owner" ? [{ icon: "⚙️", label: "Admin", href: "/admin", primary: false }] : []),
+            ].map(a => (
+              <button key={a.label} onClick={() => router.push(a.href)}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", padding: "16px 10px", background: a.primary ? "var(--red)" : "var(--navy-mid)", color: a.primary ? "var(--white)" : "var(--white-muted)", border: a.primary ? "none" : "1px solid var(--navy-border)", borderRadius: "12px", cursor: "pointer", fontSize: "0.82rem", fontWeight: 600, transition: "all 0.2s" }}
+                onMouseEnter={e => { if (!a.primary) { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(230,57,70,0.4)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--white)"; } }}
+                onMouseLeave={e => { if (!a.primary) { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--navy-border)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--white-muted)"; } }}
+              >
+                <span style={{ fontSize: "1.4rem" }}>{a.icon}</span>
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Recent rentals ── */}
+        {!dataLoading && recentRentals.length > 0 && (
+          <div style={{ marginBottom: "32px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <p className="section-label" style={{ margin: 0 }}>Recent Rentals</p>
+              <Link href="/rentals" style={{ color: "var(--red)", fontSize: "0.85rem", fontWeight: 600 }}>View all →</Link>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {recentRentals.map((r: any) => (
+                <div key={r.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", padding: "14px 18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    {r.vehicles?.image_url ? (
+                      <img src={r.vehicles.image_url} alt="" loading="lazy" decoding="async" style={{ width: "52px", height: "38px", objectFit: "cover", borderRadius: "6px", flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: "52px", height: "38px", background: "var(--navy)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0 }}>🚗</div>
+                    )}
+                    <div>
+                      <p style={{ fontWeight: 600, margin: "0 0 2px", fontSize: "0.93rem" }}>{r.vehicles?.make} {r.vehicles?.model}</p>
+                      <p style={{ color: "var(--white-muted)", fontSize: "0.78rem", margin: 0 }}>
+                        {new Date(r.start_date).toLocaleDateString("fr-CM")} → {new Date(r.end_date).toLocaleDateString("fr-CM")}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                    <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{formatFCFA(r.total_price)}</span>
+                    <span className={`badge badge-${r.status}`}>{r.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Featured vehicles ── */}
+        {!dataLoading && featuredVehicles.length > 0 && (
+          <div style={{ marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <p className="section-label" style={{ margin: 0 }}>Available Now</p>
+              <Link href="/rent" style={{ color: "var(--red)", fontSize: "0.85rem", fontWeight: 600 }}>Browse all →</Link>
+            </div>
+            <div className="grid-3">
+              {featuredVehicles.map(v => (
+                <div key={v.id} className="card" style={{ cursor: "pointer", padding: 0, overflow: "hidden" }}
+                  onClick={() => router.push(v.type === "sale" ? "/sales" : "/rent")}>
+                  {v.image_url ? (
+                    <div className="vehicle-card-image">
+                      <img src={v.image_url} alt={`${v.make} ${v.model}`} loading="lazy" decoding="async" />
+                      <div className="vehicle-card-image-overlay" />
+                      {v.daily_rate && <span className="vehicle-card-price-badge">{formatFCFA(v.daily_rate)}/day</span>}
+                      {v.location && <span style={{ position: "absolute", top: 10, right: 10, background: "rgba(13,27,42,0.8)", backdropFilter: "blur(4px)", color: "var(--white-muted)", padding: "2px 8px", borderRadius: "100px", fontSize: "0.65rem", fontWeight: 600 }}>📍 {v.location}</span>}
+                    </div>
+                  ) : (
+                    <div className="vehicle-card-placeholder">🚗</div>
+                  )}
+                  <div style={{ padding: "14px 16px" }}>
+                    <p style={{ fontWeight: 700, margin: "0 0 3px", fontSize: "0.95rem" }}>{v.make} {v.model}</p>
+                    <p style={{ color: "var(--white-muted)", fontSize: "0.78rem", margin: 0 }}>{v.year} · {v.transmission} · {v.fuel_type}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── New user onboarding ── */}
+        {isNewUser && (
+          <div style={{ background: "linear-gradient(135deg, rgba(230,57,70,0.1) 0%, rgba(13,27,42,0) 100%)", border: "1px solid rgba(230,57,70,0.2)", borderRadius: "20px", padding: "32px", marginTop: "28px" }}>
+            <p style={{ fontSize: "1.5rem", marginBottom: "8px" }}>🎉</p>
+            <h2 style={{ fontSize: "1.2rem", fontWeight: 800, margin: "0 0 10px" }}>Your account is ready!</h2>
+            <p style={{ color: "var(--white-muted)", margin: "0 0 20px", lineHeight: 1.7, fontSize: "0.9rem" }}>
+              Welcome to DriveEasy — Cameroon&apos;s premier vehicle platform. Rent a car for a day or purchase one outright. All prices in FCFA, no hidden fees.
+            </p>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <button onClick={() => router.push("/rent")} style={{ padding: "11px 22px", fontWeight: 700 }}>🚗 Rent Your First Vehicle</button>
+              <button onClick={() => router.push("/sales")} style={{ padding: "11px 22px", background: "var(--navy-light)", border: "1.5px solid var(--navy-border)", color: "var(--white)" }}>🏷️ Browse Sales</button>
+            </div>
           </div>
         )}
       </div>
