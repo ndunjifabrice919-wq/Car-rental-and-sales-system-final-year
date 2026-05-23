@@ -753,6 +753,12 @@ textarea {
 /* ===========================
    RESPONSIVE
 =========================== */
+@media (max-width: 1024px) {
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .footer-grid {
     grid-template-columns: 1fr 1fr;
@@ -761,38 +767,134 @@ textarea {
 }
 
 @media (max-width: 768px) {
-  .auth-card {
-    padding: 32px 20px;
-  }
-
+  /* Layout */
   .page {
-    padding: 28px 16px;
+    padding: 20px 16px;
   }
 
   .section-title {
-    font-size: 1.4rem;
+    font-size: 1.35rem;
   }
 
+  .section-subtitle {
+    font-size: 0.88rem;
+    margin-bottom: 20px;
+  }
+
+  /* Grids collapse to 1 column */
   .grid-3,
   .grid-2 {
     grid-template-columns: 1fr;
   }
 
-  .section-subtitle {
-    font-size: 0.9rem;
+  /* Footer */
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
   }
 
-  .footer-grid {
-    grid-template-columns: 1fr;
-    gap: 28px;
+  /* Trust badges wrap */
+  .trust-badge {
+    min-width: 140px;
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  /* Auth cards */
+  .auth-card {
+    padding: 28px 18px;
+  }
+
+  /* Rentals card: stack image above content on mobile */
+  .rental-card-row {
+    flex-direction: column !important;
+  }
+
+  .rental-card-img {
+    width: 100% !important;
+    height: 180px !important;
+  }
+
+  .rental-card-img .gradient-overlay {
+    background: linear-gradient(to bottom, transparent 60%, var(--navy-mid) 100%) !important;
+  }
+
+  /* Admin sidebar hidden by default on mobile, shown when open */
+  .admin-sidebar-mobile-hidden {
+    display: none !important;
+  }
+
+  /* Navbar hamburger */
+  .hamburger {
+    display: flex !important;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Extra small phones */
+  .page {
+    padding: 16px 12px;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
+  }
+
+  /* Landing page hero */
+  .hero-stats {
+    gap: 20px !important;
+  }
+
+  /* Trust badge strip: 2 columns */
+  .trust-strip {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px !important;
   }
 
   .trust-badge {
-    min-width: 140px;
+    min-width: unset;
+    flex: none;
   }
 
-  .hero h1 { font-size: 2.2rem; }
-  .grid { grid-template-columns: 1fr; }
-  .desktop-only { display: none !important; }
-  .hamburger { display: flex !important; }
+  /* Testimonials: full width */
+  .testimonial-card {
+    padding: 20px;
+  }
+
+  /* Footer: single column on very small screens */
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  /* Buttons full-width on tiny screens */
+  .btn-mobile-full {
+    width: 100% !important;
+  }
+
+  /* Profile stats: 2 columns */
+  .profile-stats {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Vehicle card image height */
+  .vehicle-card-image {
+    height: 170px;
+  }
+
+  /* Admin sidebar overlay */
+  .admin-sidebar-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 999 !important;
+    width: 100% !important;
+    max-width: 280px;
+  }
 }

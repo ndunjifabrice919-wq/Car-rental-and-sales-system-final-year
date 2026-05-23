@@ -93,6 +93,34 @@ export async function uploadMultipleVehicleImages(
 }
 
 /**
+ * Upload an identity document (ID card / passport scan) to Supabase Storage.
+ * Uses a separate 'id-documents' bucket with private-like naming.
+ */
+export async function uploadIdDocument(
+  file: File,
+  userId: string
+): Promise<{ url?: string; error?: string }> {
+  const ID_BUCKET = "id-documents";
+  const ext = file.name.split(".").pop() || "jpg";
+  const fileName = `${userId}/${Date.now()}-id.${ext}`;
+
+  // Compress ID docs too for faster upload (still readable)
+  const compressed = await compressImage(file, 0.9); // higher quality for ID
+
+  const { error } = await supabase.storage
+    .from(ID_BUCKET)
+    .upload(fileName, compressed, { cacheControl: "3600", upsert: true });
+
+  if (error) {
+    console.error("ID upload failed:", error.message);
+    return { error: error.message };
+  }
+
+  const { data } = supabase.storage.from(ID_BUCKET).getPublicUrl(fileName);
+  return { url: data.publicUrl };
+}
+
+/**
  * Delete an image from Supabase Storage by its URL.
  */
 export async function deleteVehicleImage(url: string): Promise<void> {
