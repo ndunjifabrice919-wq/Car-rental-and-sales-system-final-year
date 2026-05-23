@@ -27,7 +27,7 @@ export default function ContactPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {[
             { icon: "📍", title: "Office", lines: ["Buea, South West Region", "Cameroon"] },
-            { icon: "📞", title: "Phone / WhatsApp", lines: ["+237672221937", "Mon–Sat, 8am–8pm"] },
+            { icon: "📞", title: "Phone / WhatsApp", lines: ["+237 672 221 937", "Mon–Sat, 8am–8pm"] },
             { icon: "✉️", title: "Email", lines: ["smartcarrentalscr.service@gmail.com", "Response within 24 hours"] },
           ].map(c => (
             <div key={c.title} style={{ background: "var(--navy-mid)", border: "1px solid var(--navy-border)", borderRadius: "14px", padding: "20px 22px", display: "flex", gap: "14px", alignItems: "flex-start" }}>

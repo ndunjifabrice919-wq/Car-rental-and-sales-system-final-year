@@ -88,8 +88,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div>
                     <p style={{ fontWeight: 800, marginBottom: "14px", fontSize: "0.88rem", color: "var(--white-soft)" }}>Contact</p>
                     <p style={{ color: "var(--white-muted)", fontSize: "0.83rem", marginBottom: "8px" }}>📍 Buea, South West, Cameroon</p>
-                    <p style={{ color: "var(--white-muted)", fontSize: "0.83rem", marginBottom: "8px" }}>✉️ support@driveeasy.cm</p>
-                    <p style={{ color: "var(--white-muted)", fontSize: "0.83rem", marginBottom: "8px" }}>📞 +237 XXX XXX XXX</p>
+                    <p style={{ color: "var(--white-muted)", fontSize: "0.83rem", marginBottom: "8px" }}>✉️ smartcarrentalscr.service@gmail.com</p>
+                    <p style={{ color: "var(--white-muted)", fontSize: "0.83rem", marginBottom: "8px" }}>📞 +237 672 221 937</p>
                     <p style={{ color: "var(--white-muted)", fontSize: "0.83rem" }}>🕐 Mon–Sat, 8am–8pm</p>
                   </div>
                 </div>
