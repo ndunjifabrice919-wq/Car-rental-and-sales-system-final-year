@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { CITIES_BY_REGION } from "@/lib/locations";
 import { useAuth } from "@/context/AuthContext";
-import { uploadVehicleImage } from "@/lib/storage";
+import { uploadMultipleVehicleImages } from "@/lib/storage";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
 
@@ -43,9 +43,12 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [formMsg, setFormMsg] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [primaryIdx, setPrimaryIdx] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
 
   const chartData = useMemo(() => {
     const data: Record<string, number> = {};
@@ -124,23 +127,52 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  const addImageFiles = (files: File[]) => {
+    const valid = files.filter(f => f.type.startsWith("image/")).slice(0, 10);
+    if (valid.length === 0) return;
+    setImageFiles(prev => {
+      const combined = [...prev, ...valid].slice(0, 10);
+      setImagePreviews(combined.map(f => URL.createObjectURL(f)));
+      return combined;
+    });
+  };
+
+  const removeImage = (idx: number) => {
+    setImageFiles(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      setImagePreviews(next.map(f => URL.createObjectURL(f)));
+      if (primaryIdx >= next.length) setPrimaryIdx(Math.max(0, next.length - 1));
+      return next;
+    });
+  };
+
   const saveVehicle = async () => {
     if (!form.make || !form.model) { setFormMsg("Make and model are required."); return; }
-    setSaving(true); setFormMsg("");
+    setSaving(true); setFormMsg(""); setUploadProgress(0);
 
-    // Upload image if a file was selected
     let imageUrl = form.image_url;
-    if (imageFile) {
+
+    if (imageFiles.length > 0) {
       setUploading(true);
-      const res = await uploadVehicleImage(imageFile);
+      const { urls, errors } = await uploadMultipleVehicleImages(
+        imageFiles,
+        (done, total) => setUploadProgress(Math.round((done / total) * 100))
+      );
       setUploading(false);
-      
-      if (res.error) {
-        setFormMsg(`Upload failed: ${res.error}. Did you create the 'vehicle-images' bucket?`);
+
+      if (errors.length > 0 && urls.length === 0) {
+        setFormMsg(`Upload failed: ${errors[0]}. Check the 'vehicle-images' bucket exists.`);
         setSaving(false);
         return;
-      } else if (res.url) {
-        imageUrl = res.url;
+      }
+      // Primary image = the one the admin starred; remaining stored as JSON in description prefix
+      if (urls.length > 0) {
+        const orderedUrls = [
+          urls[primaryIdx] ?? urls[0],
+          ...urls.filter((_, i) => i !== primaryIdx),
+        ];
+        imageUrl = orderedUrls[0];
+        if (errors.length > 0) setFormMsg(`⚠️ ${errors.length} image(s) failed to upload but continuing.`);
       }
     }
 
@@ -160,7 +192,7 @@ export default function AdminPage() {
     if (error) { setFormMsg("Error: " + error.message); return; }
     setFormMsg(editId ? "✅ Vehicle updated!" : "✅ Vehicle added!");
     setForm({ ...BLANK }); setEditId(null); setShowForm(false);
-    setImageFile(null); setImagePreview(null);
+    setImageFiles([]); setImagePreviews([]); setPrimaryIdx(0);
     await loadAll();
   };
 
@@ -317,31 +349,113 @@ export default function AdminPage() {
               <label className="form-label">Description</label>
               <textarea placeholder="Vehicle description..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
+            {/* ── MULTI-PHOTO UPLOAD ── */}
             <div className="form-group" style={{ marginTop: "14px" }}>
-              <label className="form-label">Vehicle Image</label>
-              <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", flexWrap: "wrap" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 20px", background: "var(--navy)", border: "2px dashed var(--navy-border)", borderRadius: "10px", cursor: "pointer", fontSize: "0.88rem", color: "var(--white-muted)", transition: "border-color 0.2s" }}>
-                  📷 {imageFile ? "Change Photo" : "Upload from Device"}
-                  <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) {
-                      setImageFile(f);
-                      setImagePreview(URL.createObjectURL(f));
-                    }
-                  }} />
-                </label>
-                {(imagePreview || form.image_url) && (
-                  <div style={{ position: "relative" }}>
-                    <img src={imagePreview || form.image_url} alt="Preview" style={{ width: "80px", height: "60px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--navy-border)" }} />
-                    {imageFile && <span style={{ position: "absolute", top: "-6px", right: "-6px", background: "#34d399", color: "#000", borderRadius: "50%", width: "18px", height: "18px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 800 }}>✓</span>}
-                  </div>
-                )}
-                {imageFile && <span style={{ fontSize: "0.78rem", color: "var(--white-muted)", alignSelf: "center" }}>{imageFile.name} ({(imageFile.size / 1024).toFixed(0)} KB)</span>}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <label className="form-label" style={{ margin: 0 }}>Vehicle Photos</label>
+                <span style={{ fontSize: "0.75rem", color: "var(--white-muted)" }}>
+                  {imageFiles.length > 0 ? `${imageFiles.length} photo${imageFiles.length > 1 ? "s" : ""} selected` : "Up to 10 photos"}
+                </span>
               </div>
-              {uploading && <p style={{ color: "#fbbf24", fontSize: "0.82rem", marginTop: "6px" }}>⏳ Uploading image...</p>}
+
+              {/* Drop zone */}
+              <label
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={e => { e.preventDefault(); setDragOver(false); addImageFiles(Array.from(e.dataTransfer.files)); }}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: "10px", padding: "28px 20px",
+                  background: dragOver ? "rgba(230,57,70,0.08)" : "var(--navy)",
+                  border: `2px dashed ${dragOver ? "var(--red)" : "var(--navy-border)"}`,
+                  borderRadius: "12px", cursor: "pointer",
+                  transition: "border-color 0.2s, background 0.2s",
+                }}
+              >
+                <span style={{ fontSize: "2rem" }}>📷</span>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ margin: 0, fontWeight: 600, color: "var(--white-soft)", fontSize: "0.9rem" }}>Drag &amp; drop photos here</p>
+                  <p style={{ margin: "4px 0 0", color: "var(--white-muted)", fontSize: "0.78rem" }}>or click to browse · JPG, PNG, WEBP · Auto-compressed</p>
+                </div>
+                <input
+                  type="file" accept="image/*" multiple style={{ display: "none" }}
+                  onChange={e => addImageFiles(Array.from(e.target.files || []))}
+                />
+              </label>
+
+              {/* Preview grid */}
+              {(imagePreviews.length > 0 || form.image_url) && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "10px", marginTop: "14px" }}>
+                  {/* Existing image from DB when editing */}
+                  {form.image_url && imageFiles.length === 0 && (
+                    <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden", border: "2px solid var(--red)", aspectRatio: "4/3" }}>
+                      <img src={form.image_url} alt="Current" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(230,57,70,0.9)", padding: "3px", textAlign: "center", fontSize: "0.65rem", fontWeight: 800, color: "#fff" }}>CURRENT</div>
+                    </div>
+                  )}
+
+                  {/* Newly selected images */}
+                  {imagePreviews.map((src, idx) => (
+                    <div key={idx} style={{ position: "relative", borderRadius: "10px", overflow: "hidden", border: `2px solid ${idx === primaryIdx ? "var(--red)" : "var(--navy-border)"}`, aspectRatio: "4/3", cursor: "pointer", transition: "border-color 0.2s" }}
+                      onClick={() => setPrimaryIdx(idx)}
+                      title={idx === primaryIdx ? "Primary (shown on cards)" : "Click to set as primary"}
+                    >
+                      <img src={src} alt={`Photo ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+
+                      {/* Primary star badge */}
+                      {idx === primaryIdx && (
+                        <div style={{ position: "absolute", top: 4, left: 4, background: "var(--red)", color: "#fff", borderRadius: "100px", padding: "2px 7px", fontSize: "0.62rem", fontWeight: 800 }}>★ MAIN</div>
+                      )}
+
+                      {/* Remove button */}
+                      <button
+                        onClick={e => { e.stopPropagation(); removeImage(idx); }}
+                        style={{ position: "absolute", top: 4, right: 4, width: "22px", height: "22px", padding: 0, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", borderRadius: "50%", fontSize: "0.75rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                        title="Remove"
+                      >✕</button>
+
+                      {/* File size */}
+                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(13,27,42,0.75)", padding: "2px 4px", fontSize: "0.6rem", color: "var(--white-muted)", textAlign: "center" }}>
+                        {(imageFiles[idx].size / 1024).toFixed(0)} KB
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add more button */}
+                  {imageFiles.length < 10 && imageFiles.length > 0 && (
+                    <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "6px", border: "2px dashed var(--navy-border)", borderRadius: "10px", aspectRatio: "4/3", cursor: "pointer", color: "var(--white-muted)", fontSize: "0.78rem", transition: "border-color 0.2s" }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--red)")}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--navy-border)")}>
+                      <span style={{ fontSize: "1.4rem" }}>+</span>
+                      Add more
+                      <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={e => addImageFiles(Array.from(e.target.files || []))} />
+                    </label>
+                  )}
+                </div>
+              )}
+
+              {imagePreviews.length > 1 && (
+                <p style={{ fontSize: "0.75rem", color: "var(--white-muted)", marginTop: "8px" }}>
+                  💡 Click a photo to set it as the <strong>main</strong> image shown on listings. Others are uploaded too.
+                </p>
+              )}
+
+              {/* Upload progress bar */}
+              {uploading && (
+                <div style={{ marginTop: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "0.78rem", color: "#fbbf24" }}>⏳ Compressing &amp; uploading…</span>
+                    <span style={{ fontSize: "0.78rem", color: "var(--white-muted)" }}>{uploadProgress}%</span>
+                  </div>
+                  <div style={{ height: "6px", background: "var(--navy-border)", borderRadius: "100px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${uploadProgress}%`, background: "var(--red)", borderRadius: "100px", transition: "width 0.3s ease" }} />
+                  </div>
+                </div>
+              )}
             </div>
+
             <button onClick={saveVehicle} disabled={saving || uploading} style={{ marginTop: "18px" }}>
-              {uploading ? "Uploading Image..." : saving ? "Saving..." : editId ? "Update Vehicle" : "Add Vehicle"}
+              {uploading ? `Uploading ${uploadProgress}%…` : saving ? "Saving…" : editId ? "Update Vehicle" : "Add Vehicle"}
             </button>
           </div>
         )}
