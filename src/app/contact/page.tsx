@@ -27,8 +27,8 @@ export default function ContactPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {[
             { icon: "📍", title: "Office", lines: ["Buea, South West Region", "Cameroon"] },
-            { icon: "📞", title: "Phone / WhatsApp", lines: ["+237 XXX XXX XXX", "Mon–Sat, 8am–8pm"] },
-            { icon: "✉️", title: "Email", lines: ["support@driveeasy.cm", "Response within 24 hours"] },
+            { icon: "📞", title: "Phone / WhatsApp", lines: ["+237672221937", "Mon–Sat, 8am–8pm"] },
+            { icon: "✉️", title: "Email", lines: ["smartcarrentalscr.service@gmail.com", "Response within 24 hours"] },
           ].map(c => (
             <div key={c.title} style={{ background: "var(--navy-mid)", border: "1px solid var(--navy-border)", borderRadius: "14px", padding: "20px 22px", display: "flex", gap: "14px", alignItems: "flex-start" }}>
               <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>{c.icon}</span>
@@ -40,7 +40,7 @@ export default function ContactPage() {
           ))}
 
           {/* WhatsApp CTA */}
-          <a href="https://wa.me/237000000000" target="_blank" rel="noreferrer"
+          <a href="https://wa.me/237672221937" target="_blank" rel="noreferrer"
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", padding: "14px", background: "#25d366", color: "#fff", borderRadius: "12px", fontWeight: 700, textDecoration: "none", fontSize: "0.95rem" }}>
             💬 Chat on WhatsApp
           </a>

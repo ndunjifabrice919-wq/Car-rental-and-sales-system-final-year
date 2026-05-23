@@ -8,6 +8,7 @@ import { calculateRentalPrice, type RentalPriceResult } from "@/lib/pricing";
 import PaymentModal from "@/components/ui/PaymentModal";
 import ReauthModal from "@/components/ui/ReauthModal";
 import VerificationGate from "@/components/ui/VerificationGate";
+import FavouriteButton from "@/components/ui/FavouriteButton";
 import { CITIES_BY_REGION } from "@/lib/locations";
 import { useLang } from "@/context/LangContext";
 
@@ -238,7 +239,10 @@ function RentalCard({ vehicle: v, onCheckout }: { vehicle: any; onCheckout: (sta
           <img src={v.image_url} alt={`${v.make} ${v.model}`} loading="lazy" decoding="async" />
           <div className="vehicle-card-image-overlay" />
           <span className="vehicle-card-price-badge">{formatFCFA(v.daily_rate)}/day</span>
-          {v.location && <span style={{ position: "absolute", top: 12, right: 12, background: "rgba(13,27,42,0.8)", backdropFilter: "blur(4px)", color: "var(--white-muted)", padding: "3px 10px", borderRadius: "100px", fontSize: "0.68rem", fontWeight: 600 }}>📍 {v.location}</span>}
+          <div style={{ position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end" }}>
+            <FavouriteButton vehicleId={v.id} size="sm" />
+            {v.location && <span style={{ background: "rgba(13,27,42,0.8)", backdropFilter: "blur(4px)", color: "var(--white-muted)", padding: "3px 10px", borderRadius: "100px", fontSize: "0.68rem", fontWeight: 600 }}>📍 {v.location}</span>}
+          </div>
         </div>
       ) : (
         <div className="vehicle-card-placeholder">🚗</div>

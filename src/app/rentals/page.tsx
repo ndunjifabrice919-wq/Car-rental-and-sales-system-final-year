@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { emailRentalCancelled } from "@/lib/email";
+import RatingModal from "@/components/ui/RatingModal";
 
 const STATUS_ORDER = ["pending", "active", "completed"];
 const STATUS_LABELS: Record<string, string> = {
@@ -63,6 +64,8 @@ export default function RentalsPage() {
   const [rentals, setRentals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [ratingTarget, setRatingTarget] = useState<{ rentalId: string; vehicleId: string; vehicleName: string } | null>(null);
+  const [reviewed, setReviewed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -76,6 +79,12 @@ export default function RentalsPage() {
       .from("rentals").select("*, vehicles(make, model, year, color, fuel_type, transmission, image_url, seats)")
       .eq("user_id", userId).order("created_at", { ascending: false });
     setRentals(data || []);
+    // Load which rentals have already been reviewed
+    if (data && data.length > 0) {
+      const ids = data.map((r: any) => r.id);
+      const { data: revs } = await supabase.from("reviews").select("rental_id").in("rental_id", ids).eq("user_id", userId);
+      setReviewed(new Set((revs || []).map((rv: any) => rv.rental_id)));
+    }
     setLoading(false);
   };
 
@@ -217,22 +226,52 @@ export default function RentalsPage() {
                     )}
 
                     {/* Actions */}
-                    {(r.status === "pending" || r.status === "active") && (
-                      <div>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      {(r.status === "pending" || r.status === "active") && (
                         <button
                           onClick={() => handleCancel(r.id)}
                           disabled={cancelling === r.id}
                           style={{ background: "transparent", border: "1.5px solid var(--red)", color: "var(--red)", padding: "8px 20px", fontSize: "0.84rem", borderRadius: "8px" }}>
                           {cancelling === r.id ? "Cancelling..." : "Cancel Rental"}
                         </button>
-                      </div>
-                    )}
+                      )}
+                      {r.status === "completed" && !reviewed.has(r.id) && (
+                        <button
+                          onClick={() => setRatingTarget({ rentalId: r.id, vehicleId: r.vehicle_id, vehicleName: r.vehicles ? `${r.vehicles.make} ${r.vehicles.model}` : "Vehicle" })}
+                          style={{ background: "rgba(251,191,36,0.12)", border: "1.5px solid rgba(251,191,36,0.4)", color: "#fbbf24", padding: "8px 18px", fontSize: "0.84rem", borderRadius: "8px", fontWeight: 700 }}>
+                          ⭐ Rate this Rental
+                        </button>
+                      )}
+                      {r.status === "completed" && reviewed.has(r.id) && (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "8px 14px", background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: "8px", color: "#34d399", fontSize: "0.8rem", fontWeight: 700 }}>✓ Reviewed</span>
+                      )}
+                      {(r.status === "completed" || r.status === "active") && (
+                        <button
+                          onClick={() => router.push(`/rentals/${r.id}/receipt`)}
+                          style={{ background: "transparent", border: "1.5px solid var(--navy-border)", color: "var(--white-muted)", padding: "8px 18px", fontSize: "0.84rem", borderRadius: "8px" }}>
+                          🧾 Receipt
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {ratingTarget && (
+        <RatingModal
+          rentalId={ratingTarget.rentalId}
+          vehicleId={ratingTarget.vehicleId}
+          vehicleName={ratingTarget.vehicleName}
+          onClose={() => setRatingTarget(null)}
+          onSuccess={() => {
+            setReviewed(prev => new Set([...prev, ratingTarget.rentalId]));
+            setRatingTarget(null);
+          }}
+        />
       )}
     </div>
   );

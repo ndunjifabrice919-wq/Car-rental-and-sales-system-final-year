@@ -32,6 +32,7 @@ export default function Navbar() {
     { href: "/sales", label: t("nav.buy") },
     { href: "/rentals", label: t("nav.myRentals") },
     { href: "/sales/history", label: t("nav.myPurchases") },
+    { href: "/favourites", label: "❤️ Saved" },
     ...(profile?.role === "admin" || profile?.role === "owner"
       ? [{ href: "/admin", label: profile?.role === "owner" ? t("nav.owner") : t("nav.admin") }]
       : []),
