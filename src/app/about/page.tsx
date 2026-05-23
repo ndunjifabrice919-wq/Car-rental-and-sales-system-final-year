@@ -85,7 +85,7 @@ export default function AboutPage() {
           <a href="/contact" style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "12px 24px", background: "var(--red)", color: "#fff", borderRadius: "10px", fontWeight: 700, textDecoration: "none", fontSize: "0.9rem" }}>
             📞 Contact Us
           </a>
-          <a href="https://wa.me/237000000000" target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "12px 24px", background: "#25d366", color: "#fff", borderRadius: "10px", fontWeight: 700, textDecoration: "none", fontSize: "0.9rem" }}>
+          <a href="https://wa.me/237672221937" target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "12px 24px", background: "#25d366", color: "#fff", borderRadius: "10px", fontWeight: 700, textDecoration: "none", fontSize: "0.9rem" }}>
             💬 WhatsApp
           </a>
         </div>

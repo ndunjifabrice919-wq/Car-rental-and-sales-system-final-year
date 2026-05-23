@@ -48,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <p style={{ color: "var(--white-muted)", fontSize: "0.83rem", lineHeight: 1.7, margin: "0 0 16px" }}>
                       Cameroon&apos;s premier vehicle rental and sales platform. Based in Buea, serving the nation.
                     </p>
-                    <a href="https://wa.me/237000000000" target="_blank" rel="noreferrer"
+                    <a href="https://wa.me/237672221937" target="_blank" rel="noreferrer"
                       style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "#25d366", color: "#fff", padding: "8px 14px", borderRadius: "8px", textDecoration: "none", fontSize: "0.8rem", fontWeight: 700 }}>
                       💬 WhatsApp Us
                     </a>
