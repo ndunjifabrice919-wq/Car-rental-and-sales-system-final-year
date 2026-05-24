@@ -216,12 +216,22 @@ export default function AdminPage() {
   };
 
   const updateUserRole = async (id: string, role: string) => {
-    await supabase.from("profiles").update({ role }).eq("id", id);
+    const { error } = await supabase.from("profiles").update({ role }).eq("id", id);
+    if (error) {
+      console.error("Error updating user role:", error);
+      alert("❌ Error: " + error.message);
+      return;
+    }
     setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u));
   };
 
   const updateVerificationStatus = async (id: string, status: string) => {
-    await supabase.from("profiles").update({ verification_status: status }).eq("id", id);
+    const { error } = await supabase.from("profiles").update({ verification_status: status }).eq("id", id);
+    if (error) {
+      console.error("Error updating verification status:", error);
+      alert("❌ Error: " + error.message);
+      return;
+    }
     setUsers(prev => prev.map(u => u.id === id ? { ...u, verification_status: status } : u));
   };
 
