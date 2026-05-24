@@ -32,12 +32,13 @@ export default function AdminPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const { lang } = useLang();
   const [tab, setTab] = useState<Tab>("overview");
+  const [userFilter, setUserFilter] = useState<"all" | "pending">("all");
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [rentals, setRentals] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [stats, setStats] = useState({ vehicles: 0, rentals: 0, sales: 0, revenue: 0, pending: 0 });
+  const [stats, setStats] = useState({ vehicles: 0, rentals: 0, sales: 0, revenue: 0, pending: 0, users: 0 });
   const [form, setForm] = useState({ ...BLANK });
   const [editId, setEditId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -123,7 +124,7 @@ export default function AdminPage() {
     setSales(salesWithProfiles);
     
     const revenue = (s.data || []).map((x: any) => x.sale_price || 0).reduce((a, b) => a + b, 0);
-    setStats({ vehicles: v.data?.length || 0, rentals: 0, sales: salesWithProfiles.length, revenue, pending: 0 });
+    setStats({ vehicles: v.data?.length || 0, rentals: 0, sales: salesWithProfiles.length, revenue, pending: 0, users: usersList.length });
     setLoading(false);
   };
 
@@ -217,6 +218,11 @@ export default function AdminPage() {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u));
   };
 
+  const updateVerificationStatus = async (id: string, status: string) => {
+    await supabase.from("profiles").update({ verification_status: status }).eq("id", id);
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, verification_status: status } : u));
+  };
+
   const fmtDate = (d: string) => new Date(d).toLocaleDateString(lang === "fr" ? "fr-CM" : "en-CM", { day: "2-digit", month: "short", year: "numeric" });
   const fc = (v: any) => ({ field: v, val: (form as any)[v], onChange: (val: any) => setForm(f => ({ ...f, [v]: val })) });
 
@@ -229,9 +235,43 @@ export default function AdminPage() {
   return (
     <div style={{ display: "flex", minHeight: "calc(100vh - 68px)" }}>
 
+      {/* ── MOBILE BACKDROP OVERLAY ── */}
+      {sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            top: "68px",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(13,27,42,0.6)",
+            backdropFilter: "blur(4px)",
+            zIndex: 999
+          }}
+          className="sidebar-overlay-mobile"
+        />
+      )}
+
       {/* ── SIDEBAR ── */}
-      <aside style={{ ...sidebar, display: sidebarOpen ? "flex" : undefined }}>
+      <aside className={`admin-sidebar ${sidebarOpen ? "open" : ""}`} style={sidebar}>
         <div style={{ padding: "20px 16px 12px" }}>
+          {/* Mobile-only Minimize Button */}
+          <div className="mob-menu-btn" style={{ display: "none", justifyContent: "flex-end", marginBottom: "12px" }}>
+            <button 
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                background: "rgba(230,57,70,0.12)",
+                color: "var(--red)",
+                border: "1px solid rgba(230,57,70,0.3)",
+                padding: "6px 12px",
+                fontSize: "0.78rem",
+                borderRadius: "8px"
+              }}
+            >
+              ✕ Hide Sidebar
+            </button>
+          </div>
           <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--white-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "12px" }}>
             Admin Panel
           </p>
@@ -457,6 +497,7 @@ export default function AdminPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "14px", marginBottom: "28px" }}>
               {[
                 { label: "Total Vehicles", value: stats.vehicles, color: "var(--white)", icon: "🚗" },
+                { label: "Total Users", value: stats.users, color: "#a855f7", icon: "👥" },
                 { label: "Total Sales", value: stats.sales, color: "#60a5fa", icon: "🏷️" },
                 { label: "Total Revenue", value: formatFCFA(stats.revenue), color: "var(--red)", icon: "💰" },
               ].map(s => (
@@ -588,35 +629,197 @@ export default function AdminPage() {
                 ⚠️ As an Admin, you can only manage customer accounts. Only the Owner can promote or demote admins.
               </div>
             )}
+
+            {/* Premium segmented filter controls */}
+            <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
+              <button 
+                onClick={() => setUserFilter("all")} 
+                style={{ 
+                  background: userFilter === "all" ? "var(--red)" : "var(--navy-mid)",
+                  border: `1.5px solid ${userFilter === "all" ? "var(--red)" : "var(--navy-border)"}`,
+                  color: "#fff",
+                  fontSize: "0.82rem",
+                  padding: "9px 18px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
+                All Users ({users.filter(u => isOwner || u.role === "customer").length})
+              </button>
+              <button 
+                onClick={() => setUserFilter("pending")} 
+                style={{ 
+                  background: userFilter === "pending" ? "var(--red)" : "var(--navy-mid)",
+                  border: `1.5px solid ${userFilter === "pending" ? "var(--red)" : "var(--navy-border)"}`,
+                  color: "#fff",
+                  fontSize: "0.82rem",
+                  padding: "9px 18px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
+                ⌛ Pending Verification ({users.filter(u => (isOwner || u.role === "customer") && u.verification_status === "pending").length})
+              </button>
+            </div>
+
             {users
               .filter(u => isOwner || u.role === "customer") // admins only see customers
+              .filter(u => userFilter === "all" || u.verification_status === "pending")
               .map(u => {
                 const isProtected = !isOwner && (u.role === "admin" || u.role === "owner");
                 return (
-                  <div key={u.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
-                        <h3 style={{ fontSize: "0.92rem", margin: 0 }}>{u.full_name || "Unnamed User"}</h3>
-                        {u.role === "owner" && <span style={{ background: "rgba(96,165,250,0.15)", color: "#60a5fa", fontSize: "0.68rem", fontWeight: 800, padding: "2px 8px", borderRadius: "100px" }}>OWNER</span>}
+                  <div key={u.id} className="card" style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+                    
+                    {/* Header Details Row */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", width: "100%" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px", flexWrap: "wrap" }}>
+                          <h3 style={{ fontSize: "0.92rem", margin: 0 }}>{u.full_name || "Unnamed User"}</h3>
+                          
+                          {/* Role Badge */}
+                          {u.role === "owner" && <span style={{ background: "rgba(96,165,250,0.15)", color: "#60a5fa", fontSize: "0.68rem", fontWeight: 800, padding: "2px 8px", borderRadius: "100px" }}>OWNER</span>}
+                          
+                          {/* Verification Status Badge */}
+                          <span className={`badge ${
+                            u.verification_status === "verified" 
+                              ? "badge-completed" 
+                              : u.verification_status === "pending" 
+                                ? "badge-pending" 
+                                : "badge-sold"
+                          }`} style={{ fontSize: "0.68rem", padding: "2px 8px", borderRadius: "100px", textTransform: "capitalize" }}>
+                            {u.verification_status === "verified" 
+                              ? "✓ Verified" 
+                              : u.verification_status === "pending" 
+                                ? "⌛ Pending" 
+                                : "Unverified"}
+                          </span>
+                        </div>
+                        <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>{u.phone || "No phone"} · Joined {fmtDate(u.created_at)}</p>
                       </div>
-                      <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>{u.phone || "No phone"} · Joined {fmtDate(u.created_at)}</p>
+                      
+                      {/* Role dropdown and status info */}
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <span className={`badge ${u.role === "owner" ? "badge-pending" : u.role === "admin" ? "badge-rented" : "badge-available"}`}>{u.role}</span>
+                        {/* Only owner can change roles, and cannot demote themselves */}
+                        {isOwner && u.id !== user?.id ? (
+                          <select value={u.role} onChange={e => updateUserRole(u.id, e.target.value)}
+                            style={{ padding: "7px 10px", fontSize: "0.82rem", borderRadius: "8px" }}>
+                            <option value="customer">Customer</option>
+                            <option value="admin">Admin</option>
+                            <option value="owner">Owner</option>
+                          </select>
+                        ) : isOwner && u.id === user?.id ? (
+                          <span style={{ color: "var(--white-muted)", fontSize: "0.8rem" }}>You (Owner)</span>
+                        ) : (
+                          <span style={{ color: "var(--white-muted)", fontSize: "0.8rem", fontStyle: "italic" }}>View only</span>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                      <span className={`badge ${u.role === "owner" ? "badge-pending" : u.role === "admin" ? "badge-rented" : "badge-available"}`}>{u.role}</span>
-                      {/* Only owner can change roles, and cannot demote themselves */}
-                      {isOwner && u.id !== user?.id ? (
-                        <select value={u.role} onChange={e => updateUserRole(u.id, e.target.value)}
-                          style={{ padding: "7px 10px", fontSize: "0.82rem", borderRadius: "8px" }}>
-                          <option value="customer">Customer</option>
-                          <option value="admin">Admin</option>
-                          <option value="owner">Owner</option>
-                        </select>
-                      ) : isOwner && u.id === user?.id ? (
-                        <span style={{ color: "var(--white-muted)", fontSize: "0.8rem" }}>You (Owner)</span>
-                      ) : (
-                        <span style={{ color: "var(--white-muted)", fontSize: "0.8rem", fontStyle: "italic" }}>View only</span>
-                      )}
-                    </div>
+
+                    {/* ID Document Details & Verification Actions Panel */}
+                    {(u.id_document_url || u.id_number || u.verification_status === "pending") && (
+                      <div style={{
+                        marginTop: "4px",
+                        padding: "16px",
+                        background: "var(--navy)",
+                        border: "1px solid var(--navy-border)",
+                        borderRadius: "10px",
+                        width: "100%"
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+                          <div>
+                            <p style={{ margin: "0 0 6px", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--white-muted)", fontWeight: 700 }}>
+                              Identification Details
+                            </p>
+                            <p style={{ margin: "0 0 6px", fontSize: "0.85rem", color: "var(--white-soft)" }}>
+                              ID Number: <strong style={{ color: "var(--white)" }}>{u.id_number || "Not provided"}</strong>
+                            </p>
+                            {u.id_document_url ? (
+                              <a 
+                                href={u.id_document_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                style={{ 
+                                  color: "#60a5fa", 
+                                  fontSize: "0.82rem", 
+                                  fontWeight: 600,
+                                  textDecoration: "underline",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px"
+                                }}
+                              >
+                                📄 View Submitted ID Document →
+                              </a>
+                            ) : (
+                              <span style={{ fontSize: "0.82rem", color: "var(--white-muted)", fontStyle: "italic" }}>
+                                No document photo uploaded
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Approval / Rejection Controls */}
+                          {u.verification_status === "pending" && (
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <button
+                                onClick={() => updateVerificationStatus(u.id, "verified")}
+                                style={{
+                                  background: "rgba(52,211,153,0.15)",
+                                  color: "#34d399",
+                                  border: "1px solid rgba(52,211,153,0.3)",
+                                  padding: "8px 16px",
+                                  fontSize: "0.8rem",
+                                  borderRadius: "8px",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  transition: "all 0.15s",
+                                  display: "inline-flex"
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "rgba(52,211,153,0.25)";
+                                  e.currentTarget.style.transform = "translateY(-1px)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "rgba(52,211,153,0.15)";
+                                  e.currentTarget.style.transform = "none";
+                                }}
+                              >
+                                ✓ Approve &amp; Verify
+                              </button>
+                              <button
+                                onClick={() => updateVerificationStatus(u.id, "unverified")}
+                                style={{
+                                  background: "rgba(230,57,70,0.12)",
+                                  color: "var(--red)",
+                                  border: "1px solid rgba(230,57,70,0.3)",
+                                  padding: "8px 16px",
+                                  fontSize: "0.8rem",
+                                  borderRadius: "8px",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  transition: "all 0.15s",
+                                  display: "inline-flex"
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "rgba(230,57,70,0.2)";
+                                  e.currentTarget.style.transform = "translateY(-1px)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "rgba(230,57,70,0.12)";
+                                  e.currentTarget.style.transform = "none";
+                                }}
+                              >
+                                ✕ Reject Document
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
