@@ -353,7 +353,9 @@ export default function VehicleDetailPage() {
     if (error || !data) { router.push("/vehicles"); return; }
     setVehicle(data);
     // Auto-set active mode for single-type vehicles
-    setActiveMode("buy");
+    if (data.type === "rental") setActiveMode("rent");
+    else if (data.type === "sale") setActiveMode("buy");
+    else setActiveMode("rent"); // default for "both"
     setLoading(false);
   };
 
@@ -463,9 +465,9 @@ export default function VehicleDetailPage() {
 
   if (!vehicle) return null;
 
-  const canRent = false;
-  const canBuy = true;
-  const isBoth = false;
+  const canRent = vehicle.type === "rental" || vehicle.type === "both";
+  const canBuy = vehicle.type === "sale" || vehicle.type === "both";
+  const isBoth = vehicle.type === "both";
 
   return (
     <div className="page">
@@ -574,7 +576,10 @@ export default function VehicleDetailPage() {
               <SpecRow icon="💺" label="Seats" value={vehicle.seats ? `${vehicle.seats} seats` : null} />
               <SpecRow icon="📍" label="Mileage" value={vehicle.mileage ? `${vehicle.mileage.toLocaleString()} km` : null} />
               <SpecRow icon="📌" label="Location" value={vehicle.location} />
-              <SpecRow icon="🚗" label="Listing Type" value="For Sale" />
+              <SpecRow icon="🚗" label="Listing Type" value={
+                vehicle.type === "both" ? "Rent & Buy" :
+                vehicle.type === "rental" ? "Rental Only" : "For Sale"
+              } />
             </div>
           </div>
 

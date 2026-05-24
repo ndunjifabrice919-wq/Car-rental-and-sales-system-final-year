@@ -62,7 +62,11 @@ function VehicleCard({ vehicle: v }: { vehicle: any }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
 
-  const priceLabel = formatFCFA(v.sale_price);
+  const priceLabel = v.type === "sale"
+    ? formatFCFA(v.sale_price)
+    : v.type === "both"
+    ? `From ${formatFCFA(v.daily_rate)}/day`
+    : `${formatFCFA(v.daily_rate)}/day`;
 
   return (
     <div
@@ -128,6 +132,10 @@ function VehicleCard({ vehicle: v }: { vehicle: any }) {
               </span>
             )}
           </div>
+          {/* Type badge top-left */}
+          <div style={{ position: "absolute", top: 12, left: 12 }}>
+            <TypeBadge type={v.type} />
+          </div>
         </div>
       ) : (
         <div style={{
@@ -137,6 +145,9 @@ function VehicleCard({ vehicle: v }: { vehicle: any }) {
           fontSize: "4rem", opacity: 0.35, position: "relative",
         }}>
           🚗
+          <div style={{ position: "absolute", top: 12, left: 12 }}>
+            <TypeBadge type={v.type} />
+          </div>
         </div>
       )}
 
@@ -204,7 +215,7 @@ export default function VehiclesPage() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<VehicleTab>("sale");
+  const [tab, setTab] = useState<VehicleTab>("all");
   const [search, setSearch] = useState("");
   const [fuelFilter, setFuelFilter] = useState("");
   const [transFilter, setTransFilter] = useState("");
@@ -295,7 +306,7 @@ export default function VehiclesPage() {
           Available Vehicles
         </h1>
         <p className="section-subtitle" style={{ margin: 0, maxWidth: "560px" }}>
-          Browse our complete fleet of high-quality vehicles for sale. Real-time availability,
+          Browse our complete fleet — rent for a day or own it forever. Real-time availability,
           FCFA pricing and mobile money checkout.
         </p>
 
@@ -303,7 +314,9 @@ export default function VehiclesPage() {
         <div style={{ display: "flex", gap: "20px", marginTop: "24px", flexWrap: "wrap" }}>
           {[
             { label: "Vehicles Available", value: vehicles.length, icon: "🚙" },
-            { label: "Pure 'Buy Now' Deals", value: filtered.length, icon: "🏷️" },
+            { label: "Rentable", value: tabCounts.rental, icon: "🔑" },
+            { label: "For Sale", value: tabCounts.sale, icon: "🏷️" },
+            { label: "Rent & Buy", value: tabCounts.both, icon: "⭐" },
           ].map(s => (
             <div key={s.label} style={{
               background: "rgba(255,255,255,0.04)", border: "1px solid var(--navy-border)",
@@ -318,6 +331,46 @@ export default function VehiclesPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{
+        display: "flex", gap: "6px", marginBottom: "24px",
+        background: "var(--navy-mid)", padding: "6px",
+        borderRadius: "14px", border: "1px solid var(--navy-border)",
+        overflowX: "auto",
+      }}>
+        {TABS.map(t => {
+          const count = tabCounts[t.key];
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                flex: 1, minWidth: "120px",
+                padding: "10px 16px", borderRadius: "10px",
+                background: active ? "var(--red)" : "transparent",
+                color: active ? "#fff" : "var(--white-muted)",
+                border: "none", fontWeight: 700, fontSize: "0.85rem",
+                cursor: "pointer", display: "flex", alignItems: "center",
+                justifyContent: "center", gap: "6px", whiteSpace: "nowrap",
+                transition: "all 0.2s",
+                boxShadow: active ? "0 4px 16px rgba(230,57,70,0.3)" : "none",
+              }}
+            >
+              <span>{t.icon}</span>
+              <span>{t.label}</span>
+              <span style={{
+                background: active ? "rgba(255,255,255,0.25)" : "var(--navy)",
+                borderRadius: "100px", padding: "1px 8px",
+                fontSize: "0.72rem", fontWeight: 800,
+              }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Controls row */}
@@ -353,6 +406,22 @@ export default function VehiclesPage() {
             {filtered.length} vehicle{filtered.length !== 1 ? "s" : ""} found
           </span>
         )}
+        <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+          <Link href="/rent" style={{
+            background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.25)",
+            color: "#34d399", padding: "8px 16px", borderRadius: "8px",
+            fontSize: "0.82rem", fontWeight: 700, textDecoration: "none",
+          }}>
+            🔑 Rental Flow
+          </Link>
+          <Link href="/sales" style={{
+            background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.25)",
+            color: "#60a5fa", padding: "8px 16px", borderRadius: "8px",
+            fontSize: "0.82rem", fontWeight: 700, textDecoration: "none",
+          }}>
+            🏷️ Buy Flow
+          </Link>
+        </div>
       </div>
 
       {/* Filter Panel */}
