@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { emailRentalCancelled } from "@/lib/email";
 import RatingModal from "@/components/ui/RatingModal";
+import { useLang } from "@/context/LangContext";
 
 const STATUS_ORDER = ["pending", "active", "completed"];
 const STATUS_LABELS: Record<string, string> = {
@@ -64,6 +65,7 @@ export default function RentalsPage() {
   const [rentals, setRentals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const { lang } = useLang();
   const [ratingTarget, setRatingTarget] = useState<{ rentalId: string; vehicleId: string; vehicleName: string } | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
 
@@ -107,7 +109,7 @@ export default function RentalsPage() {
     setCancelling(null);
   };
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString("fr-CM", { day: "2-digit", month: "short", year: "numeric" });
+  const formatDate = (d: string) => new Date(d).toLocaleDateString(lang === "fr" ? "fr-CM" : "en-CM", { day: "2-digit", month: "short", year: "numeric" });
 
   const activeCount = rentals.filter(r => r.status === "active").length;
   const pendingCount = rentals.filter(r => r.status === "pending").length;

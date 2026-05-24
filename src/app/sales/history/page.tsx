@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
+import { useLang } from "@/context/LangContext";
 
 export default function PurchaseHistoryPage() {
   const router = useRouter();
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { lang } = useLang();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -21,7 +23,7 @@ export default function PurchaseHistoryPage() {
     });
   }, [router]);
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString("fr-CM", { day: "2-digit", month: "long", year: "numeric" });
+  const formatDate = (d: string) => new Date(d).toLocaleDateString(lang === "fr" ? "fr-CM" : "en-CM", { day: "2-digit", month: "long", year: "numeric" });
 
   return (
     <div className="page">

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { CITIES_BY_REGION } from "@/lib/locations";
 import { useAuth } from "@/context/AuthContext";
+import { useLang } from "@/context/LangContext";
 import { uploadMultipleVehicleImages } from "@/lib/storage";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { format, parseISO } from "date-fns";
@@ -13,7 +14,7 @@ import { format, parseISO } from "date-fns";
 type Tab = "overview" | "vehicles" | "rentals" | "sales" | "users" | "logs";
 
 const BLANK = {
-  make: "", model: "", year: new Date().getFullYear(), type: "rental",
+  make: "", model: "", year: new Date().getFullYear(), type: "sale",
   daily_rate: "", sale_price: "", fuel_type: "Petrol", transmission: "Automatic",
   color: "", seats: 5, mileage: "", description: "", image_url: "", status: "available", location: "Buea",
 };
@@ -21,7 +22,6 @@ const BLANK = {
 const NAV_ITEMS: { key: Tab; icon: string; label: string }[] = [
   { key: "overview",  icon: "📊", label: "Overview"  },
   { key: "vehicles",  icon: "🚗", label: "Vehicles"  },
-  { key: "rentals",   icon: "📅", label: "Rentals"   },
   { key: "sales",     icon: "💰", label: "Sales"     },
   { key: "users",     icon: "👥", label: "Users"     },
   { key: "logs",      icon: "📜", label: "Activity Logs" },
@@ -30,6 +30,7 @@ const NAV_ITEMS: { key: Tab; icon: string; label: string }[] = [
 export default function AdminPage() {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
+  const { lang } = useLang();
   const [tab, setTab] = useState<Tab>("overview");
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -121,9 +122,8 @@ export default function AdminPage() {
     setRentals(rentalsWithProfiles);
     setSales(salesWithProfiles);
     
-    const revenue = [...(r.data || []).map((x: any) => x.total_price || 0), ...(s.data || []).map((x: any) => x.sale_price || 0)].reduce((a, b) => a + b, 0);
-    const pending = rentalsWithProfiles.filter((x: any) => x.status === "pending").length;
-    setStats({ vehicles: v.data?.length || 0, rentals: rentalsWithProfiles.length, sales: salesWithProfiles.length, revenue, pending });
+    const revenue = (s.data || []).map((x: any) => x.sale_price || 0).reduce((a, b) => a + b, 0);
+    setStats({ vehicles: v.data?.length || 0, rentals: 0, sales: salesWithProfiles.length, revenue, pending: 0 });
     setLoading(false);
   };
 
@@ -177,8 +177,8 @@ export default function AdminPage() {
     }
 
     const payload = {
-      make: form.make, model: form.model, year: Number(form.year), type: form.type, status: form.status,
-      daily_rate: form.daily_rate ? Number(form.daily_rate) : null,
+      make: form.make, model: form.model, year: Number(form.year), type: "sale", status: form.status,
+      daily_rate: null,
       sale_price: form.sale_price ? Number(form.sale_price) : null,
       fuel_type: form.fuel_type, transmission: form.transmission,
       color: form.color, seats: Number(form.seats),
@@ -217,7 +217,7 @@ export default function AdminPage() {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u));
   };
 
-  const fmtDate = (d: string) => new Date(d).toLocaleDateString("fr-CM", { day: "2-digit", month: "short", year: "numeric" });
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString(lang === "fr" ? "fr-CM" : "en-CM", { day: "2-digit", month: "short", year: "numeric" });
   const fc = (v: any) => ({ field: v, val: (form as any)[v], onChange: (val: any) => setForm(f => ({ ...f, [v]: val })) });
 
   const isOwner = profile?.role === "owner";
@@ -275,7 +275,7 @@ export default function AdminPage() {
             <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ display: "none", background: "var(--navy-light)", border: "none", color: "var(--white)", padding: "8px 12px", borderRadius: "8px", cursor: "pointer" }} className="mob-menu-btn">☰</button>
             <div>
               <h1 style={{ fontSize: "1.3rem", fontWeight: 800, margin: 0 }}>{NAV_ITEMS.find(n => n.key === tab)?.icon} {NAV_ITEMS.find(n => n.key === tab)?.label}</h1>
-              <p style={{ color: "var(--white-muted)", margin: 0, fontSize: "0.82rem" }}>DriveEasy {isOwner ? "Owner" : "Admin"} · {new Date().toLocaleDateString("fr-CM", { weekday: "long", day: "numeric", month: "long" })}</p>
+              <p style={{ color: "var(--white-muted)", margin: 0, fontSize: "0.82rem" }}>DriveEasy {isOwner ? "Owner" : "Admin"} · {new Date().toLocaleDateString(lang === "fr" ? "fr-CM" : "en-CM", { weekday: "long", day: "numeric", month: "long" })}</p>
             </div>
           </div>
           {tab === "vehicles" && (
@@ -298,7 +298,6 @@ export default function AdminPage() {
                 { label: "Color", f: "color", ph: "e.g. White" },
                 { label: "Seats", f: "seats", ph: "5", t: "number" },
                 { label: "Mileage (km)", f: "mileage", ph: "10000", t: "number" },
-                { label: "Daily Rate (FCFA)", f: "daily_rate", ph: "25000", t: "number" },
                 { label: "Sale Price (FCFA)", f: "sale_price", ph: "9500000", t: "number" },
               ].map(({ label, f, ph, t }) => (
                 <div key={f} className="form-group">
@@ -306,14 +305,6 @@ export default function AdminPage() {
                   <input type={t || "text"} placeholder={ph} value={(form as any)[f]} onChange={e => setForm(fm => ({ ...fm, [f]: e.target.value }))} />
                 </div>
               ))}
-              <div className="form-group">
-                <label className="form-label">Type</label>
-                <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-                  <option value="rental">Rental Only</option>
-                  <option value="sale">Sale Only</option>
-                  <option value="both">Rental &amp; Sale</option>
-                </select>
-              </div>
               <div className="form-group">
                 <label className="form-label">Fuel Type</label>
                 <select value={form.fuel_type} onChange={e => setForm(f => ({ ...f, fuel_type: e.target.value }))}>
@@ -466,8 +457,6 @@ export default function AdminPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "14px", marginBottom: "28px" }}>
               {[
                 { label: "Total Vehicles", value: stats.vehicles, color: "var(--white)", icon: "🚗" },
-                { label: "Total Rentals", value: stats.rentals, color: "#34d399", icon: "📅" },
-                { label: "Pending Rentals", value: stats.pending, color: "#fbbf24", icon: "⏳" },
                 { label: "Total Sales", value: stats.sales, color: "#60a5fa", icon: "🏷️" },
                 { label: "Total Revenue", value: formatFCFA(stats.revenue), color: "var(--red)", icon: "💰" },
               ].map(s => (
@@ -499,18 +488,12 @@ export default function AdminPage() {
               )}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              {[
-                { title: "Recent Rentals", items: rentals.slice(0, 5), render: (r: any) => (<><span>{r.vehicles?.make} {r.vehicles?.model}</span><span style={{ color: "var(--white-muted)", fontSize: "0.8rem" }}>{formatFCFA(r.total_price)}</span></>) },
-                { title: "Recent Sales", items: sales.slice(0, 5), render: (s: any) => (<><span>{s.vehicles?.make} {s.vehicles?.model}</span><span style={{ color: "var(--red)", fontWeight: 700, fontSize: "0.9rem" }}>{formatFCFA(s.sale_price)}</span></>) },
-              ].map(({ title, items, render }) => (
-                <div key={title} style={{ background: "var(--navy-mid)", border: "1px solid var(--navy-border)", borderRadius: "12px", padding: "20px" }}>
-                  <h3 style={{ marginBottom: "14px", fontSize: "0.95rem" }}>{title}</h3>
-                  {items.length === 0 ? <p style={{ color: "var(--white-muted)", fontSize: "0.85rem" }}>No records yet</p> : items.map((item: any) => (
-                    <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid var(--navy-border)", fontSize: "0.85rem" }}>
-                      {render(item)}
-                    </div>
-                  ))}
+            <div style={{ background: "var(--navy-mid)", border: "1px solid var(--navy-border)", borderRadius: "12px", padding: "20px" }}>
+              <h3 style={{ marginBottom: "14px", fontSize: "0.95rem" }}>Recent Sales</h3>
+              {sales.length === 0 ? <p style={{ color: "var(--white-muted)", fontSize: "0.85rem" }}>No records yet</p> : sales.slice(0, 5).map((item: any) => (
+                <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid var(--navy-border)", fontSize: "0.85rem" }}>
+                  <span>{item.vehicles?.make} {item.vehicles?.model}</span>
+                  <span style={{ color: "var(--red)", fontWeight: 700, fontSize: "0.9rem" }}>{formatFCFA(item.sale_price)}</span>
                 </div>
               ))}
             </div>
