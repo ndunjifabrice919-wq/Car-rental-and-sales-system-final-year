@@ -127,45 +127,55 @@ function RentalPanel({
         </div>
       </div>
 
-      {/* Pricing breakdown */}
+      {/* Smart Pricing Display */}
       {pricing && pricing.days > 0 && (
         <div style={{
-          background: "var(--navy)", borderRadius: "12px",
-          padding: "16px", marginBottom: "16px",
-          border: "1px solid var(--navy-border)",
+          background: "var(--navy)", borderRadius: "12px", padding: "16px", marginBottom: "16px",
+          border: "1px solid var(--navy-border)", display: "flex", flexDirection: "column", gap: "12px",
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem", color: "var(--white-muted)", marginBottom: "8px" }}>
-            <span>{formatFCFA(vehicle.daily_rate)} × {pricing.days} day{pricing.days > 1 ? "s" : ""}</span>
-            <span>{formatFCFA(pricing.originalTotal)}</span>
+          {/* Smart Rate header row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "0.75rem", color: "var(--white-muted)" }}>
+              {formatFCFA(vehicle.daily_rate)} × {pricing.days} day{pricing.days > 1 ? "s" : ""}
+            </span>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: "5px",
+              background: "rgba(230,57,70,0.1)", border: "1px solid rgba(230,57,70,0.25)",
+              color: "var(--red)", padding: "3px 10px", borderRadius: "100px",
+              fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase",
+            }}>
+              <span style={{
+                width: "5px", height: "5px", borderRadius: "50%", background: "var(--red)",
+                display: "inline-block", animation: "pulse-red 1.5s infinite",
+              }} />
+              Smart Rate
+            </span>
           </div>
-          {pricing.factors.map((f, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.79rem", marginBottom: "5px" }}>
-              <span style={{ color: f.type === "discount" ? "#34d399" : "#fbbf24" }}>
-                {f.type === "discount" ? "↓" : "↑"} {f.label} ({f.type === "discount" ? "-" : "+"}{f.percent}%)
-              </span>
-              <span style={{ color: f.type === "discount" ? "#34d399" : "#fbbf24" }}>
-                {f.type === "discount" ? "-" : "+"}{formatFCFA(f.amount)}
-              </span>
-            </div>
-          ))}
-          <div style={{
-            borderTop: "1px solid var(--navy-border)", paddingTop: "12px",
-            marginTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "center",
-          }}>
+          {/* Final price + savings */}
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
             <div>
-              <p style={{ fontSize: "0.72rem", color: "var(--white-muted)", margin: "0 0 2px" }}>
+              {pricing.savings > 0 && (
+                <span style={{
+                  fontSize: "0.78rem", color: "var(--white-muted)", textDecoration: "line-through",
+                  display: "block", marginBottom: "2px",
+                }}>
+                  {formatFCFA(pricing.originalTotal)}
+                </span>
+              )}
+              <span style={{ fontSize: "0.7rem", color: "var(--white-muted)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700 }}>
                 Total · {pricing.days} day{pricing.days > 1 ? "s" : ""}
-              </p>
-              <p style={{ fontSize: "1.4rem", fontWeight: 900, color: "var(--red)", margin: 0 }}>
+              </span>
+              <div style={{ fontSize: "1.5rem", fontWeight: 900, color: "var(--red)", lineHeight: 1.1, marginTop: "3px" }}>
                 {formatFCFA(pricing.total)}
-              </p>
+              </div>
             </div>
             {pricing.savings > 0 && (
               <span style={{
-                background: "rgba(52,211,153,0.12)", color: "#34d399",
-                padding: "5px 12px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: 800,
+                background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.2)",
+                color: "#34d399", padding: "5px 12px", borderRadius: "100px",
+                fontSize: "0.75rem", fontWeight: 800,
               }}>
-                Save {formatFCFA(pricing.savings)}
+                🎉 Save {formatFCFA(pricing.savings)}
               </span>
             )}
           </div>
@@ -227,64 +237,70 @@ function BuyPanel({ vehicle, onBuy }: { vehicle: any; onBuy: (adjustedPrice: num
         </div>
       </div>
 
-      {/* Price breakdown */}
+      {/* Smart Valuation Display */}
       <div style={{
-        background: "var(--navy)", borderRadius: "12px",
-        padding: "16px", marginBottom: "16px",
-        border: "1px solid var(--navy-border)",
+        background: "var(--navy)", borderRadius: "12px", padding: "16px", marginBottom: "16px",
+        border: "1px solid var(--navy-border)", display: "flex", flexDirection: "column", gap: "12px",
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem", color: "var(--white-muted)", marginBottom: "8px" }}>
-          <span>Listed Price</span>
-          <span style={{ textDecoration: hasPriceChange ? "line-through" : "none" }}>
-            {formatFCFA(pricing.basePrice)}
-          </span>
-        </div>
-        {pricing.factors.map((f, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.79rem", marginBottom: "5px" }}>
-            <span style={{ color: f.type === "discount" ? "#34d399" : "#60a5fa" }}>
-              {f.type === "discount" ? "↓" : "↑"} {f.label} ({f.type === "discount" ? "-" : "+"}{f.percent}%)
-            </span>
-            <span style={{ color: f.type === "discount" ? "#34d399" : "#60a5fa" }}>
-              {f.type === "discount" ? "-" : "+"}{formatFCFA(f.amount)}
+        {/* Smart badge header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: "0.7rem", color: "var(--white-muted)", fontWeight: 600 }}>Listed</span>
+            <span style={{
+              fontSize: "0.9rem", fontWeight: 700, color: "var(--white-muted)",
+              textDecoration: hasPriceChange ? "line-through" : "none",
+            }}>
+              {formatFCFA(pricing.basePrice)}
             </span>
           </div>
-        ))}
-        <div style={{
-          borderTop: "1px solid var(--navy-border)", paddingTop: "12px",
-          marginTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "center",
-        }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: "5px",
+            background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)",
+            color: "#60a5fa", padding: "3px 10px", borderRadius: "100px",
+            fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase",
+          }}>
+            <span style={{
+              width: "5px", height: "5px", borderRadius: "50%", background: "#60a5fa",
+              display: "inline-block", animation: "pulse-red 1.5s infinite",
+            }} />
+            Smart Valuation
+          </span>
+        </div>
+        {/* Final price */}
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
           <div>
-            <p style={{ fontSize: "0.72rem", color: "var(--white-muted)", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <span style={{ fontSize: "0.7rem", color: "var(--white-muted)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700 }}>
               Your Price
-            </p>
-            <p style={{
-              fontSize: "1.6rem", fontWeight: 900,
+            </span>
+            <div style={{
+              fontSize: "1.7rem", fontWeight: 900, lineHeight: 1.1, marginTop: "3px",
               color: isDiscount ? "#34d399" : hasPriceChange ? "#60a5fa" : "var(--red)",
-              margin: 0,
             }}>
               {formatFCFA(pricing.adjustedPrice)}
-            </p>
+            </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
             {isDiscount && pricing.savings > 0 && (
               <span style={{
-                background: "rgba(52,211,153,0.12)", color: "#34d399",
-                padding: "5px 12px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: 800,
+                background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.2)",
+                color: "#34d399", padding: "5px 12px", borderRadius: "100px",
+                fontSize: "0.75rem", fontWeight: 800,
               }}>
-                Save {formatFCFA(pricing.savings)}
+                🎉 Save {formatFCFA(pricing.savings)}
               </span>
             )}
             {pricing.demandBadge && (
               <span style={{
-                background: pricing.demandBadge === "Great Value" ? "rgba(52,211,153,0.12)"
-                  : pricing.demandBadge === "High Demand" ? "rgba(251,191,36,0.12)"
-                  : "rgba(96,165,250,0.12)",
+                background: pricing.demandBadge === "Great Value" ? "rgba(52,211,153,0.1)"
+                  : pricing.demandBadge === "High Demand" ? "rgba(251,191,36,0.1)"
+                  : "rgba(96,165,250,0.1)",
+                border: `1px solid ${pricing.demandBadge === "Great Value" ? "rgba(52,211,153,0.25)" : pricing.demandBadge === "High Demand" ? "rgba(251,191,36,0.25)" : "rgba(96,165,250,0.25)"}`,
                 color: pricing.demandBadge === "Great Value" ? "#34d399"
                   : pricing.demandBadge === "High Demand" ? "#fbbf24"
                   : "#60a5fa",
                 padding: "4px 10px", borderRadius: "100px", fontSize: "0.73rem", fontWeight: 700,
               }}>
-                {pricing.demandBadge}
+                {pricing.demandBadge === "Great Value" ? "💰" : pricing.demandBadge === "High Demand" ? "🔥" : "✨"} {pricing.demandBadge}
               </span>
             )}
           </div>

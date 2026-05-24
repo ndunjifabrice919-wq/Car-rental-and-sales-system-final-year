@@ -287,31 +287,55 @@ function RentalCard({ vehicle: v, onCheckout }: { vehicle: any; onCheckout: (sta
           </div>
         </div>
 
-        {/* Dynamic Price Breakdown */}
+        {/* Smart Pricing Display */}
         {pricing && pricing.days > 0 && (
-          <div style={{ background: "var(--navy)", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem", color: "var(--white-muted)" }}>
-              <span>{formatFCFA(v.daily_rate)} × {pricing.days} day{pricing.days > 1 ? "s" : ""}</span>
-              <span>{formatFCFA(pricing.originalTotal)}</span>
+          <div style={{
+            background: "var(--navy)", borderRadius: "12px", padding: "16px",
+            border: "1px solid var(--navy-border)", display: "flex", flexDirection: "column", gap: "12px",
+          }}>
+            {/* Smart Rate badge */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--white-muted)" }}>
+                {formatFCFA(v.daily_rate)} × {pricing.days} day{pricing.days > 1 ? "s" : ""}
+              </span>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: "5px",
+                background: "rgba(230,57,70,0.1)", border: "1px solid rgba(230,57,70,0.25)",
+                color: "var(--red)", padding: "3px 10px", borderRadius: "100px",
+                fontSize: "0.68rem", fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase",
+              }}>
+                <span style={{
+                  width: "5px", height: "5px", borderRadius: "50%", background: "var(--red)",
+                  display: "inline-block", animation: "pulse-red 1.5s infinite",
+                }} />
+                Smart Rate
+              </span>
             </div>
-            {pricing.factors.map((f, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.79rem" }}>
-                <span style={{ color: f.type === "discount" ? "#34d399" : "#fbbf24" }}>
-                  {f.type === "discount" ? "↓" : "↑"} {f.label} ({f.type === "discount" ? "-" : "+"}{f.percent}%)
-                </span>
-                <span style={{ color: f.type === "discount" ? "#34d399" : "#fbbf24" }}>
-                  {f.type === "discount" ? "-" : "+"}{formatFCFA(f.amount)}
-                </span>
-              </div>
-            ))}
-            <div style={{ borderTop: "1px solid var(--navy-border)", paddingTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {/* Final price + savings */}
+            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
               <div>
-                <p style={{ fontSize: "0.72rem", color: "var(--white-muted)", margin: "0 0 2px" }}>Total ({pricing.days} days)</p>
-                <p style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--red)", margin: 0 }}>{formatFCFA(pricing.total)}</p>
+                {pricing.savings > 0 && (
+                  <span style={{
+                    fontSize: "0.78rem", color: "var(--white-muted)", textDecoration: "line-through",
+                    display: "block", marginBottom: "2px",
+                  }}>
+                    {formatFCFA(pricing.originalTotal)}
+                  </span>
+                )}
+                <span style={{ fontSize: "0.7rem", color: "var(--white-muted)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700 }}>
+                  Total · {pricing.days} day{pricing.days > 1 ? "s" : ""}
+                </span>
+                <div style={{ fontSize: "1.5rem", fontWeight: 900, color: "var(--red)", lineHeight: 1.1, marginTop: "3px" }}>
+                  {formatFCFA(pricing.total)}
+                </div>
               </div>
               {pricing.savings > 0 && (
-                <span style={{ background: "rgba(52,211,153,0.12)", color: "#34d399", padding: "4px 10px", borderRadius: "100px", fontSize: "0.73rem", fontWeight: 700 }}>
-                  Save {formatFCFA(pricing.savings)}
+                <span style={{
+                  background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.2)",
+                  color: "#34d399", padding: "5px 12px", borderRadius: "100px",
+                  fontSize: "0.75rem", fontWeight: 800,
+                }}>
+                  🎉 Save {formatFCFA(pricing.savings)}
                 </span>
               )}
             </div>
