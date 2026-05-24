@@ -28,6 +28,7 @@ export default function Navbar() {
 
   const userLinks = [
     { href: "/", label: t("nav.home") },
+    { href: "/vehicles", label: "🚗 Vehicles" },
     { href: "/rent", label: t("nav.rent") },
     { href: "/sales", label: t("nav.buy") },
     { href: "/rentals", label: t("nav.myRentals") },

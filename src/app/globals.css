@@ -898,3 +898,31 @@ textarea {
     max-width: 280px;
   }
 }
+
+/* ===========================
+   VEHICLE DETAIL PAGE
+=========================== */
+.vehicle-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 36px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .vehicle-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Vehicles listing page tab buttons — allow horizontal scroll on mobile */
+@media (max-width: 640px) {
+  .vehicles-tabs {
+    gap: 4px;
+  }
+  .vehicles-tabs button {
+    min-width: 90px !important;
+    padding: 9px 10px !important;
+    font-size: 0.78rem !important;
+  }
+}
