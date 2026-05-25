@@ -17,6 +17,21 @@ function ConfirmedInner() {
       await new Promise(r => setTimeout(r, 800));
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        // Create the profile now that the user is authenticated
+        const { user } = session;
+        if (user) {
+          const rawMeta = user.user_metadata || {};
+          const fullName = rawMeta.full_name || user.email?.split("@")[0] || "User";
+          const phone = rawMeta.phone || "";
+          
+          await supabase.from("profiles").upsert({
+            id: user.id,
+            full_name: fullName,
+            phone: phone,
+            role: "customer"
+          }, { onConflict: "id" });
+        }
+
         // Sign out so they go through proper login
         await supabase.auth.signOut();
         setStatus("success");

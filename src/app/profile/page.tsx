@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { uploadIdDocument } from "@/lib/storage";
+import { useAuth } from "@/context/AuthContext";
 
 type TabType = "profile" | "verification" | "security";
 
@@ -32,6 +33,7 @@ export default function ProfilePage() {
 function ProfilePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshProfile } = useAuth();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [fullName, setFullName] = useState("");
@@ -97,6 +99,7 @@ function ProfilePageInner() {
       id: user.id, full_name: fullName.trim(), phone: phone.trim(), role: profile?.role || "customer"
     });
     setSaving(false);
+    if (!error) await refreshProfile();
     setSaveMsg(error ? "Failed to save. Try again." : "✅ Profile updated successfully!");
     setTimeout(() => setSaveMsg(""), 3000);
   };
@@ -138,6 +141,7 @@ function ProfilePageInner() {
       // Columns might not exist yet — guide the user
       setVerMsg("⚠️ Could not save verification data. Ask your admin to add id_type, id_number, id_document_url, verification_status columns to the profiles table in Supabase.");
     } else {
+      await refreshProfile();
       setVerificationStatus(newStatus);
       setVerMsg(newStatus === "pending" ? "✅ Verification submitted! Admin will review your document." : "✅ ID information saved.");
     }

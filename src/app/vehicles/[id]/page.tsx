@@ -329,14 +329,15 @@ export default function VehicleDetailPage() {
 
   const [vehicle, setVehicle] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [activeMode, setActiveMode] = useState<ActionMode>(null);
 
   // Payment flow state
-  const [pendingRentPayData, setPendingRentPayData] = useState<any>(null);
   const [rentPayData, setRentPayData] = useState<any>(null);
-  const [pendingBuyPayData, setPendingBuyPayData] = useState<any>(null);
   const [buyPayData, setBuyPayData] = useState<any>(null);
+  const [showReauth, setShowReauth] = useState<"rent" | "buy" | null>(null);
+  const [pendingActionData, setPendingActionData] = useState<any>(null);
   const [verGate, setVerGate] = useState<{ missing: string[] } | null>(null);
 
   useEffect(() => {
@@ -349,12 +350,17 @@ export default function VehicleDetailPage() {
 
   const loadVehicle = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("vehicles").select("*").eq("id", vehicleId).single();
-    if (error || !data) { router.push("/vehicles"); return; }
-    setVehicle(data);
+    const { data: vData, error } = await supabase.from("vehicles").select("*").eq("id", vehicleId).single();
+    if (error || !vData) { router.push("/vehicles"); return; }
+    if (vData) {
+      setVehicle(vData);
+      if (vData.image_url) {
+        setSelectedImage(vData.image_url.split(',')[0]);
+      }
+    }
     // Auto-set active mode for single-type vehicles
-    if (data.type === "rental") setActiveMode("rent");
-    else if (data.type === "sale") setActiveMode("buy");
+    if (vData.type === "rental") setActiveMode("rent");
+    else if (vData.type === "sale") setActiveMode("buy");
     else setActiveMode("rent"); // default for "both"
     setLoading(false);
   };
@@ -387,7 +393,9 @@ export default function VehicleDetailPage() {
     }
 
     const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", session.user.id).single();
-    setPendingRentPayData({
+    
+    setPendingActionData({
+      type: "rent",
       vehicleId,
       vehicleName: `${vehicle.make} ${vehicle.model}`,
       userId: session.user.id,
@@ -395,6 +403,7 @@ export default function VehicleDetailPage() {
       userName: prof?.full_name || session.user.email || "Customer",
       startDate, endDate, total,
     });
+    setShowReauth("rent");
   };
 
   const handleRentPaymentSuccess = async () => {
@@ -418,13 +427,15 @@ export default function VehicleDetailPage() {
     if (missing.length > 0) { setVerGate({ missing }); return; }
 
     const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", session.user.id).single();
-    setPendingBuyPayData({
+    setPendingActionData({
+      type: "buy",
       vehicle,
       adjustedPrice,
       userId: session.user.id,
       userEmail: session.user.email || "",
       userName: prof?.full_name || session.user.email || "Customer",
     });
+    setShowReauth("buy");
   };
 
   const handleBuyPaymentSuccess = async () => {
@@ -437,6 +448,16 @@ export default function VehicleDetailPage() {
     await supabase.from("vehicles").update({ status: "sold" }).eq("id", buyPayData.vehicle.id);
     setBuyPayData(null);
     router.push("/sales/history");
+  };
+
+  const handleReauthSuccess = () => {
+    setShowReauth(null);
+    if (pendingActionData?.type === "rent") {
+      setRentPayData(pendingActionData);
+    } else if (pendingActionData?.type === "buy") {
+      setBuyPayData(pendingActionData);
+    }
+    setPendingActionData(null);
   };
 
   const avgRating = reviews.length > 0
@@ -488,11 +509,13 @@ export default function VehicleDetailPage() {
         height: "420px", marginBottom: "36px", background: "var(--navy-mid)",
       }}>
         {vehicle.image_url ? (
-          <img
-            src={vehicle.image_url}
-            alt={`${vehicle.make} ${vehicle.model}`}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
+          <>
+            <img
+              src={selectedImage || vehicle.image_url.split(',')[0]}
+              alt={`${vehicle.make} ${vehicle.model}`}
+              style={{ width: "100%", height: "100%", objectFit: "cover", transition: "all 0.3s" }}
+            />
+          </>
         ) : (
           <div style={{
             height: "100%", display: "flex", alignItems: "center",
@@ -557,8 +580,28 @@ export default function VehicleDetailPage() {
         </div>
       </div>
 
+      {/* Thumbnail Gallery */}
+      {vehicle.image_url && vehicle.image_url.includes(',') && (
+        <div style={{ display: "flex", gap: "10px", marginBottom: "36px", overflowX: "auto", paddingBottom: "10px" }}>
+          {vehicle.image_url.split(',').map((imgUrl: string, idx: number) => (
+            <img
+              key={idx}
+              src={imgUrl}
+              alt={`Thumbnail ${idx + 1}`}
+              onClick={() => setSelectedImage(imgUrl)}
+              style={{
+                width: "80px", height: "60px", objectFit: "cover", borderRadius: "8px", cursor: "pointer",
+                border: selectedImage === imgUrl ? "2px solid var(--red)" : "2px solid transparent",
+                opacity: selectedImage === imgUrl ? 1 : 0.6,
+                transition: "all 0.2s"
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Main Layout — Info + Checkout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: "36px", alignItems: "start" }}>
+      <div className="vehicle-layout">
 
         {/* LEFT — Vehicle Info */}
         <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
@@ -778,13 +821,6 @@ export default function VehicleDetailPage() {
       </div>
 
       {/* Modals */}
-      {pendingRentPayData && (
-        <ReauthModal
-          userEmail={pendingRentPayData.userEmail}
-          onSuccess={() => { setRentPayData(pendingRentPayData); setPendingRentPayData(null); }}
-          onClose={() => setPendingRentPayData(null)}
-        />
-      )}
       {rentPayData && (
         <PaymentModal
           amount={rentPayData.total}
@@ -794,13 +830,7 @@ export default function VehicleDetailPage() {
         />
       )}
 
-      {pendingBuyPayData && (
-        <ReauthModal
-          userEmail={pendingBuyPayData.userEmail}
-          onSuccess={() => { setBuyPayData(pendingBuyPayData); setPendingBuyPayData(null); }}
-          onClose={() => setPendingBuyPayData(null)}
-        />
-      )}
+
       {buyPayData && (
         <PaymentModal
           amount={buyPayData.adjustedPrice}
@@ -815,6 +845,17 @@ export default function VehicleDetailPage() {
           missing={verGate.missing}
           context={activeMode === "buy" ? "purchase" : "rental"}
           onClose={() => setVerGate(null)}
+        />
+      )}
+
+      {showReauth && pendingActionData?.userEmail && (
+        <ReauthModal
+          userEmail={pendingActionData.userEmail}
+          onSuccess={handleReauthSuccess}
+          onClose={() => {
+            setShowReauth(null);
+            setPendingActionData(null);
+          }}
         />
       )}
     </div>

@@ -174,7 +174,7 @@ export default function AdminPage() {
           urls[primaryIdx] ?? urls[0],
           ...urls.filter((_, i) => i !== primaryIdx),
         ];
-        imageUrl = orderedUrls[0];
+        imageUrl = orderedUrls.join(",");
         if (errors.length > 0) setFormMsg(`⚠️ ${errors.length} image(s) failed to upload but continuing.`);
       }
     }
@@ -440,8 +440,8 @@ export default function AdminPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "10px", marginTop: "14px" }}>
                   {/* Existing image from DB when editing */}
                   {form.image_url && imageFiles.length === 0 && (
-                    <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden", border: "2px solid var(--red)", aspectRatio: "4/3" }}>
-                      <img src={form.image_url} alt="Current" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                      <img src={form.image_url.split(',')[0]} alt="Current" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(230,57,70,0.9)", padding: "3px", textAlign: "center", fontSize: "0.65rem", fontWeight: 800, color: "#fff" }}>CURRENT</div>
                     </div>
                   )}
@@ -578,7 +578,7 @@ export default function AdminPage() {
               <div key={v.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                   {v.image_url ? (
-                    <img src={v.image_url} alt="Vehicle" style={{ width: "60px", height: "45px", objectFit: "cover", borderRadius: "6px" }} />
+                    <img src={v.image_url.split(',')[0]} alt="Vehicle" style={{ width: "60px", height: "45px", objectFit: "cover", borderRadius: "6px" }} />
                   ) : (
                     <div style={{ width: "60px", height: "45px", background: "var(--navy-light)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>🚗</div>
                   )}

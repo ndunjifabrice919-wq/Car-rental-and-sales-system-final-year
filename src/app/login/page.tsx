@@ -15,8 +15,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.push("/");
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const { data: prof } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+        if (prof?.role === 'admin' || prof?.role === 'owner') {
+          router.push("/admin");
+        } else {
+          router.push("/");
+        }
+      }
     });
   }, [router]);
 
@@ -24,9 +31,17 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setError(error.message); setLoading(false); }
-    else router.push("/");
+    const { data: { user }, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setError(error.message); setLoading(false); return; }
+    
+    if (user) {
+      const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      if (prof?.role === 'admin' || prof?.role === 'owner') {
+        router.push("/admin");
+      } else {
+        router.push("/");
+      }
+    }
   };
 
   const handleOAuth = async (provider: "google") => {
@@ -34,7 +49,7 @@ export default function LoginPage() {
     setError("");
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/` },
+      options: { redirectTo: `${window.location.origin}/login` },
     });
     if (error) { setError(error.message); setOauthLoading(null); }
   };

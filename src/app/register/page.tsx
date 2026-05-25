@@ -43,14 +43,19 @@ export default function RegisterPage() {
 
     if (signUpError) { setError(signUpError.message); setLoading(false); return; }
 
+    if (data.session) {
+      // Auto-login successful (email confirmation disabled in Supabase)
+      await supabase.from("profiles").upsert({ id: data.user!.id, full_name: fullName.trim(), phone: phone.trim() || "", role: "customer" }, { onConflict: "id" });
+      router.push("/");
+      return;
+    }
+
     if (data.user) {
-      await supabase.from("profiles").upsert({ id: data.user.id, full_name: fullName.trim(), phone: phone.trim() || null, role: "customer" });
+      await supabase.from("profiles").upsert({ id: data.user.id, full_name: fullName.trim(), phone: phone.trim() || "", role: "customer" }, { onConflict: "id" });
     }
 
     setLoading(false);
-    // Show email confirmation prompt instead of auto-login
     setError("");
-    // Redirect to a page that tells them to check email
     router.push("/auth/check-email?email=" + encodeURIComponent(email));
   };
 

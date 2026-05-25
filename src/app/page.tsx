@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useLang } from "@/context/LangContext";
 import { formatFCFA } from "@/lib/currency";
 import { useAuth } from "@/context/AuthContext";
 
@@ -65,11 +66,12 @@ const TRUST_ITEMS = [
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const [stats, setStats] = useState({ rentals: 0, purchases: 0, spent: 0 });
   const [recentRentals, setRecentRentals] = useState<any[]>([]);
   const [featuredVehicles, setFeaturedVehicles] = useState<any[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dashProfile, setDashProfile] = useState<any>(null);
   const [vehicleCount, setVehicleCount] = useState(0);
   const animVehicles = useCountUp(vehicleCount);
 
@@ -84,6 +86,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user || authLoading) return;
+    refreshProfile();
     setDataLoading(true);
     Promise.all([
       supabase.from("rentals").select("total_price, start_date, end_date, status, vehicle_id, id, vehicles(make,model,image_url)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
@@ -96,6 +99,7 @@ export default function HomePage() {
       setStats({ rentals: rentals?.length || 0, purchases: purchases?.length || 0, spent: rentalTotal + saleTotal });
       setRecentRentals(rentals || []);
       setFeaturedVehicles(vehicles || []);
+      setDashProfile(prof || profile);
       setDataLoading(false);
     });
   }, [user, authLoading]);
@@ -104,17 +108,18 @@ export default function HomePage() {
 
   /* ─── LOGGED IN DASHBOARD ─── */
   if (user) {
-    const displayName = profile?.full_name?.trim() ? profile.full_name.split(" ")[0] : null;
+    const currentProfile = dashProfile || profile;
+    const displayName = currentProfile?.full_name?.trim() ? currentProfile.full_name.split(" ")[0] : null;
     const hour = new Date().getHours();
     const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
     const isNewUser = !dataLoading && stats.rentals === 0 && stats.purchases === 0;
 
     // Profile completion
     const profileFields = [
-      { label: "Full name", done: !!profile?.full_name?.trim() },
-      { label: "Phone number", done: !!profile?.phone?.trim() },
-      { label: "ID number", done: !!profile?.id_number },
-      { label: "ID document", done: !!profile?.id_document_url },
+      { label: "Full name", done: !!currentProfile?.full_name?.trim() },
+      { label: "Phone number", done: !!currentProfile?.phone?.trim() },
+      { label: "ID number", done: !!currentProfile?.id_number },
+      { label: "ID document", done: !!currentProfile?.id_document_url },
     ];
     const completedFields = profileFields.filter(f => f.done).length;
     const completionPct = Math.round((completedFields / profileFields.length) * 100);
@@ -134,7 +139,7 @@ export default function HomePage() {
     const nextTrip = upcoming[0];
     const daysUntil = nextTrip ? Math.ceil((new Date(nextTrip.start_date).getTime() - Date.now()) / 86400000) : null;
 
-    const verStatus = profile?.verification_status || "unverified";
+    const verStatus = currentProfile?.verification_status || "unverified";
     const verComplete = verStatus === "verified" || verStatus === "pending";
 
     return (

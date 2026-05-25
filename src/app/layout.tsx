@@ -21,12 +21,15 @@ export const metadata: Metadata = {
   keywords: "car rental cameroon, buy car cameroon, rent car buea, voiture location cameroun",
 };
 
+import TopBanner from "@/components/ui/TopBanner";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
       <body>
         <LangProvider>
           <AuthProvider>
+            <TopBanner />
             <Navbar />
             <main>{children}</main>
 

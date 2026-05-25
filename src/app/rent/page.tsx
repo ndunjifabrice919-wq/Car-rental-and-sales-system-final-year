@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { calculateRentalPrice, type RentalPriceResult } from "@/lib/pricing";
@@ -110,8 +111,15 @@ export default function RentPage() {
     const { data: conflict } = await supabase.from("rentals").select("id").eq("vehicle_id", v.id).in("status", ["pending", "active"]).lte("start_date", endDate).gte("end_date", startDate);
     if (conflict && conflict.length > 0) { alert("This vehicle is not available for the selected dates. Please choose different dates."); return; }
 
-    // All checks passed — show Reauth OTP modal first
-    setPendingPayData({ vehicleId: v.id, vehicleName: `${v.make} ${v.model}`, userId: session.user.id, userEmail: session.user.email || "", userName: prof?.full_name || session.user.email || "Customer", startDate, endDate, total });
+    const { data: profData } = await supabase.from("profiles").select("full_name").eq("id", session.user.id).single();
+    setPayData({
+      vehicleId: v.id,
+      vehicleName: `${v.make} ${v.model}`,
+      userId: session.user.id,
+      userEmail: session.user.email || "",
+      userName: profData?.full_name || session.user.email || "Customer",
+      startDate, endDate, total,
+    });
   };
 
   const hasActiveFilters = !!(search || fuelFilter || transFilter || maxPrice || cityFilter);
@@ -197,14 +205,6 @@ export default function RentPage() {
         </div>
       )}
 
-      {/* Reauth OTP step */}
-      {pendingPayData && (
-        <ReauthModal
-          userEmail={pendingPayData.userEmail}
-          onSuccess={() => { setPayData(pendingPayData); setPendingPayData(null); }}
-          onClose={() => setPendingPayData(null)}
-        />
-      )}
       {payData && <PaymentModal amount={payData.total} description={`Rental: ${payData.vehicleName}`} onClose={() => setPayData(null)} onSuccess={handlePaymentSuccess} />}
       {verGate && <VerificationGate missing={verGate.missing} context="rental" onClose={() => setVerGate(null)} />}
     </div>
@@ -235,24 +235,26 @@ function RentalCard({ vehicle: v, onCheckout }: { vehicle: any; onCheckout: (sta
 
       {/* Image */}
       {v.image_url ? (
-        <div className="vehicle-card-image">
-          <img src={v.image_url} alt={`${v.make} ${v.model}`} loading="lazy" decoding="async" />
+        <Link href={`/vehicles/${v.id}`} className="vehicle-card-image" style={{ textDecoration: "none", display: "block" }}>
+          <img src={v.image_url.split(',')[0]} alt={`${v.make} ${v.model}`} loading="lazy" decoding="async" />
           <div className="vehicle-card-image-overlay" />
           <span className="vehicle-card-price-badge">{formatFCFA(v.daily_rate)}/day</span>
           <div style={{ position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end" }}>
             <FavouriteButton vehicleId={v.id} size="sm" />
             {v.location && <span style={{ background: "rgba(13,27,42,0.8)", backdropFilter: "blur(4px)", color: "var(--white-muted)", padding: "3px 10px", borderRadius: "100px", fontSize: "0.68rem", fontWeight: 600 }}>📍 {v.location}</span>}
           </div>
-        </div>
+        </Link>
       ) : (
-        <div className="vehicle-card-placeholder">🚗</div>
+        <Link href={`/vehicles/${v.id}`} className="vehicle-card-placeholder" style={{ textDecoration: "none" }}>🚗</Link>
       )}
 
       <div style={{ padding: "18px", display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <h3 style={{ fontSize: "1.05rem", marginBottom: "3px" }}>{v.make} {v.model}</h3>
+            <Link href={`/vehicles/${v.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+              <h3 style={{ fontSize: "1.05rem", marginBottom: "3px" }}>{v.make} {v.model}</h3>
+            </Link>
             <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>{v.year} · {v.transmission} · {v.fuel_type}</p>
           </div>
           <span className="badge badge-available">{t("rent.available")}</span>

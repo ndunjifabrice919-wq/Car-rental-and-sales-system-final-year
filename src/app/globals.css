@@ -948,3 +948,5 @@ textarea {
     font-size: 0.78rem !important;
   }
 }
+.vehicle-layout { display: grid; grid-template-columns: 1fr 400px; gap: 36px; align-items: start; }
+@media (max-width: 900px) { .vehicle-layout { grid-template-columns: 1fr; } }

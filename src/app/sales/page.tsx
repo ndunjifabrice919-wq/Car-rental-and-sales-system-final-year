@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { formatFCFA } from "@/lib/currency";
 import { calculateSalePrice, type SalePriceResult } from "@/lib/pricing";
@@ -94,7 +95,7 @@ export default function SalesPage() {
     if (missing.length > 0) { setVerGate({ missing }); return; }
 
     // All checks passed — show Reauth OTP modal first
-    setPendingPayData({ vehicle: v, adjustedPrice, userId: session.user.id, userEmail: session.user.email || "", userName: prof?.full_name || session.user.email || "Customer" });
+    setPayData({ vehicle: v, adjustedPrice, userId: session.user.id, userEmail: session.user.email || "", userName: prof?.full_name || session.user.email || "Customer" });
   };
 
   const handlePaymentSuccess = async () => {
@@ -187,13 +188,6 @@ export default function SalesPage() {
         </div>
       )}
 
-      {pendingPayData && (
-        <ReauthModal
-          userEmail={pendingPayData.userEmail}
-          onSuccess={() => { setPayData(pendingPayData); setPendingPayData(null); }}
-          onClose={() => setPendingPayData(null)}
-        />
-      )}
       {payData && (
         <PaymentModal
           amount={payData.adjustedPrice}
@@ -215,23 +209,25 @@ function SaleCard({ vehicle: v, pricing, onBuy }: { vehicle: any; pricing: SaleP
     <div className="card" style={{ display: "flex", flexDirection: "column", overflow: "hidden", padding: 0 }}>
       {/* Image */}
       {v.image_url ? (
-        <div className="vehicle-card-image">
-          <img src={v.image_url} alt={`${v.make} ${v.model}`} loading="lazy" decoding="async" />
+        <Link href={`/vehicles/${v.id}`} className="vehicle-card-image" style={{ textDecoration: "none", display: "block" }}>
+          <img src={v.image_url.split(',')[0]} alt={`${v.make} ${v.model}`} loading="lazy" decoding="async" />
           <div className="vehicle-card-image-overlay" />
           <span className="vehicle-card-price-badge">{formatFCFA(pricing.adjustedPrice)}</span>
           <div style={{ position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end" }}>
             <FavouriteButton vehicleId={v.id} size="sm" />
             {v.location && <span style={{ background: "rgba(13,27,42,0.8)", backdropFilter: "blur(4px)", color: "var(--white-muted)", padding: "3px 10px", borderRadius: "100px", fontSize: "0.68rem", fontWeight: 600 }}>📍 {v.location}</span>}
           </div>
-        </div>
+        </Link>
       ) : (
-        <div className="vehicle-card-placeholder">🚗</div>
+        <Link href={`/vehicles/${v.id}`} className="vehicle-card-placeholder" style={{ textDecoration: "none" }}>🚗</Link>
       )}
 
       <div style={{ padding: "18px", display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <h3 style={{ fontSize: "1.05rem", marginBottom: "3px" }}>{v.make} {v.model}</h3>
+            <Link href={`/vehicles/${v.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+              <h3 style={{ fontSize: "1.05rem", marginBottom: "3px" }}>{v.make} {v.model}</h3>
+            </Link>
             <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>{v.year} · {v.transmission} · {v.fuel_type}</p>
           </div>
           {pricing.demandBadge && (
