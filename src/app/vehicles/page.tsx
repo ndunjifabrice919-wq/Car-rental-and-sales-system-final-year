@@ -290,19 +290,14 @@ export default function VehiclesPage() {
   return (
     <div className="page">
       {/* Hero Header */}
-      <div style={{
-        background: "linear-gradient(135deg, rgba(230,57,70,0.08) 0%, transparent 60%)",
-        border: "1px solid var(--navy-border)", borderRadius: "20px",
-        padding: "40px 36px", marginBottom: "32px",
-        position: "relative", overflow: "hidden",
-      }}>
+      <div className="vehicles-hero">
         <div style={{
           position: "absolute", top: -40, right: -40, width: "220px", height: "220px",
           borderRadius: "50%", background: "radial-gradient(circle, rgba(230,57,70,0.06) 0%, transparent 70%)",
           pointerEvents: "none",
         }} />
         <div className="section-label" style={{ marginBottom: "14px" }}>🚗 DriveEasy Fleet</div>
-        <h1 className="section-title" style={{ fontSize: "2.2rem", marginBottom: "10px" }}>
+        <h1 className="section-title" style={{ fontSize: "clamp(1.4rem, 5vw, 2.2rem)", marginBottom: "10px" }}>
           Available Vehicles
         </h1>
         <p className="section-subtitle" style={{ margin: 0, maxWidth: "560px" }}>
@@ -334,11 +329,13 @@ export default function VehiclesPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{
+      <div className="vehicles-tabs" style={{
         display: "flex", gap: "6px", marginBottom: "24px",
         background: "var(--navy-mid)", padding: "6px",
         borderRadius: "14px", border: "1px solid var(--navy-border)",
         overflowX: "auto",
+        WebkitOverflowScrolling: "touch" as any,
+        scrollbarWidth: "none" as any,
       }}>
         {TABS.map(t => {
           const count = tabCounts[t.key];
@@ -374,7 +371,7 @@ export default function VehiclesPage() {
       </div>
 
       {/* Controls row */}
-      <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", marginBottom: "20px" }}>
+      <div className="vehicles-controls-row">
         <button
           onClick={() => setFiltersOpen(!filtersOpen)}
           style={{
@@ -406,7 +403,7 @@ export default function VehiclesPage() {
             {filtered.length} vehicle{filtered.length !== 1 ? "s" : ""} found
           </span>
         )}
-        <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+        <div className="vehicles-controls-links">
           <Link href="/rent" style={{
             background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.25)",
             color: "#34d399", padding: "8px 16px", borderRadius: "8px",
@@ -521,12 +518,7 @@ export default function VehiclesPage() {
 
       {/* Bottom CTA Strip */}
       {!loading && filtered.length > 0 && (
-        <div style={{
-          marginTop: "48px", background: "var(--navy-mid)",
-          border: "1px solid var(--navy-border)", borderRadius: "16px",
-          padding: "28px 32px", display: "flex", alignItems: "center",
-          justifyContent: "space-between", flexWrap: "wrap", gap: "16px",
-        }}>
+        <div className="vehicles-cta-strip">
           <div>
             <p style={{ fontSize: "1rem", fontWeight: 700, color: "var(--white)", margin: "0 0 4px" }}>
               💬 Need help choosing the right vehicle?

@@ -197,17 +197,21 @@ function ProfilePageInner() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="profile-stats" style={{ display: "grid", gap: "14px", marginBottom: "28px" }}>
+      <div className="profile-stats-container">
         {[
           { icon: "🚗", label: "Total Rentals", value: stats.rentals, href: "/rentals" },
           { icon: "🏷️", label: "Purchases", value: stats.purchases, href: "/sales/history" },
           { icon: "💰", label: "Total Spent", value: formatFCFA(stats.totalSpent), href: "#" },
         ].map(s => (
-          <div key={s.label} onClick={() => s.href !== "#" && router.push(s.href)} className="card"
-            style={{ textAlign: "center", cursor: s.href !== "#" ? "pointer" : "default", padding: "18px" }}>
-            <p style={{ fontSize: "1.3rem", margin: "0 0 2px" }}>{s.icon}</p>
-            <p style={{ fontSize: "1.3rem", fontWeight: 800, margin: "0 0 4px", color: "var(--white)" }}>{s.value}</p>
-            <p style={{ color: "var(--white-muted)", fontSize: "0.78rem", margin: 0 }}>{s.label}</p>
+          <div
+            key={s.label}
+            onClick={() => s.href !== "#" && router.push(s.href)}
+            className="profile-stat-card"
+            style={{ cursor: s.href !== "#" ? "pointer" : "default" }}
+          >
+            <p className="profile-stat-icon">{s.icon}</p>
+            <p className="profile-stat-value">{s.value}</p>
+            <p className="profile-stat-label">{s.label}</p>
           </div>
         ))}
       </div>

@@ -906,9 +906,31 @@ textarea {
     width: 100% !important;
   }
 
-  /* Profile stats: 2 columns */
-  .profile-stats {
-    grid-template-columns: 1fr 1fr !important;
+  /* Profile stats-container: 3 columns, smaller size (tiny boxes going to the right) */
+  .profile-stats-container {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .profile-stat-card {
+    padding: 10px 4px !important;
+    border-radius: 8px !important;
+  }
+
+  .profile-stat-icon {
+    font-size: 1rem !important;
+    margin-bottom: 1px !important;
+  }
+
+  .profile-stat-value {
+    font-size: clamp(0.75rem, 3.2vw, 0.95rem) !important;
+    margin-bottom: 2px !important;
+    font-weight: 800 !important;
+  }
+
+  .profile-stat-label {
+    font-size: 0.68rem !important;
   }
 
   /* Vehicle card image height */
@@ -961,6 +983,54 @@ textarea {
   flex-wrap: wrap;
 }
 
+.profile-stats-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.profile-stat-card {
+  text-align: center;
+  padding: 18px;
+  background: var(--navy-mid);
+  border: 1px solid var(--navy-border);
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.profile-stat-card[style*="pointer"] {
+  cursor: pointer;
+}
+
+.profile-stat-card[style*="pointer"]:hover {
+  transform: translateY(-2px);
+  border-color: var(--red);
+  box-shadow: 0 6px 20px rgba(230, 57, 70, 0.15);
+}
+
+.profile-stat-icon {
+  font-size: 1.3rem;
+  margin: 0 0 2px;
+}
+
+.profile-stat-value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+  color: var(--white);
+  line-height: 1.2;
+}
+
+.profile-stat-label {
+  color: var(--white-muted);
+  font-size: 0.78rem;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .profile-tabs {
   display: flex;
   gap: 4px;
@@ -997,7 +1067,7 @@ textarea {
 
 .admin-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   margin-bottom: 28px;
 }
@@ -1380,9 +1450,31 @@ textarea {
     width: 100% !important;
   }
 
-  /* Profile stats: 2 columns */
-  .profile-stats {
-    grid-template-columns: 1fr 1fr !important;
+  /* Profile stats-container: 3 columns, smaller size (tiny boxes going to the right) */
+  .profile-stats-container {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .profile-stat-card {
+    padding: 10px 4px !important;
+    border-radius: 8px !important;
+  }
+
+  .profile-stat-icon {
+    font-size: 1rem !important;
+    margin-bottom: 1px !important;
+  }
+
+  .profile-stat-value {
+    font-size: clamp(0.75rem, 3.2vw, 0.95rem) !important;
+    margin-bottom: 2px !important;
+    font-weight: 800 !important;
+  }
+
+  .profile-stat-label {
+    font-size: 0.68rem !important;
   }
 
   /* Vehicle card image height */
