@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 
 interface Profile {
@@ -33,65 +33,67 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  // Start loading=true; flip to false once we have the initial session
   const [loading, setLoading] = useState(true);
+  const isMounted = useRef(true);
 
-  const fetchProfile = async (u: any) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, phone, role, verification_status, id_number, id_document_url")
-      .eq("id", u.id)
-      .single();
-      
-    if (!data) {
-      // Auto-create missing profile
+  const fetchProfile = async (u: any): Promise<Profile | null> => {
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, phone, role, verification_status, id_number, id_document_url")
+        .eq("id", u.id)
+        .single();
+
+      if (data) return data;
+
+      // Auto-create missing profile (e.g. Google OAuth users)
       const rawMeta = u.user_metadata || {};
-      const fullName = rawMeta.full_name || u.email?.split("@")[0] || "User";
+      const fullName = rawMeta.full_name || rawMeta.name || u.email?.split("@")[0] || "User";
       const phone = rawMeta.phone || "";
-      
-      const { data: newProfile, error } = await supabase.from("profiles").upsert({
-        id: u.id,
-        full_name: fullName,
-        phone: phone,
-        role: "customer"
-      }, { onConflict: "id" }).select("id, full_name, phone, role, verification_status, id_number, id_document_url").single();
-      
-      if (error) {
-        console.error("❌ Profile Auto-creation failed:", error);
-      }
-      
-      setProfile(newProfile ?? null);
-    } else {
-      setProfile(data);
+
+      const { data: newProfile } = await supabase
+        .from("profiles")
+        .upsert({ id: u.id, full_name: fullName, phone, role: "customer" }, { onConflict: "id" })
+        .select("id, full_name, phone, role, verification_status, id_number, id_document_url")
+        .single();
+
+      return newProfile ?? null;
+    } catch {
+      return null;
     }
   };
 
   useEffect(() => {
-    // Single session check on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        fetchProfile(u).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
+    isMounted.current = true;
 
-    // Listen for auth state changes (login/logout)
+    // Use onAuthStateChange as the SINGLE source of truth.
+    // It fires immediately on mount with the persisted session (INITIAL_SESSION event),
+    // so we don't need a separate getSession() call.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         const u = session?.user ?? null;
+
+        if (!isMounted.current) return;
         setUser(u);
+
         if (u) {
-          await fetchProfile(u);
+          // Don't block UI — resolve loading immediately, then fetch profile in background
+          setLoading(false);
+          const prof = await fetchProfile(u);
+          if (isMounted.current) setProfile(prof);
         } else {
           setProfile(null);
+          setLoading(false);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      isMounted.current = false;
+      subscription.unsubscribe();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -100,9 +102,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user);
-    }
+    if (!user) return;
+    const prof = await fetchProfile(user);
+    if (isMounted.current) setProfile(prof);
   };
 
   return (
@@ -112,5 +114,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook — use this in every page/component instead of calling supabase.auth.getSession()
 export const useAuth = () => useContext(AuthContext);

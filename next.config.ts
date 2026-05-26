@@ -25,15 +25,25 @@ const nextConfig: NextConfig = {
   // ── Compression & security ───────────────────────────────────────────
   compress: true,
   poweredByHeader: false,
-  reactStrictMode: true,
+  reactStrictMode: false,
 
-  // ── Cache headers for static assets ──────────────────────────────────
+  // ── Cache headers ─────────────────────────────────────────────────────
   async headers() {
     return [
+      // Static assets: cache aggressively (1 year, immutable)
       {
         source: "/_next/static/:path*",
         headers: [
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      // HTML pages: always revalidate so mobile browsers don't serve stale pages
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" },
         ],
       },
     ];
