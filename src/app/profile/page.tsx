@@ -179,13 +179,13 @@ function ProfilePageInner() {
     <div className="page animate-in" style={{ maxWidth: "860px" }}>
 
       {/* ── Profile Header ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: "20px", marginBottom: "32px", flexWrap: "wrap" }}>
+      <div className="profile-header">
         <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, var(--red), #c1121f)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.7rem", fontWeight: 900, flexShrink: 0, boxShadow: "0 0 0 3px rgba(230,57,70,0.25)" }}>
           {initials}
         </div>
-        <div style={{ flex: 1 }}>
-          <h1 style={{ margin: "0 0 4px", fontSize: "1.5rem", fontWeight: 900 }}>{fullName || "Your Profile"}</h1>
-          <p style={{ color: "var(--white-muted)", margin: "0 0 8px", fontSize: "0.88rem" }}>{user.email}</p>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 style={{ margin: "0 0 4px", fontSize: "clamp(1.2rem, 4vw, 1.5rem)", fontWeight: 900 }}>{fullName || "Your Profile"}</h1>
+          <p style={{ color: "var(--white-muted)", margin: "0 0 8px", fontSize: "0.88rem", overflowWrap: "break-word" }}>{user.email}</p>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {profile?.role === "admin" && <span className="badge" style={{ background: "rgba(230,57,70,0.15)", color: "var(--red)" }}>Admin</span>}
             {profile?.role === "owner" && <span className="badge" style={{ background: "rgba(96,165,250,0.15)", color: "#60a5fa" }}>Owner</span>}
@@ -197,7 +197,7 @@ function ProfilePageInner() {
       </div>
 
       {/* ── Stats ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "14px", marginBottom: "28px" }}>
+      <div className="profile-stats" style={{ display: "grid", gap: "14px", marginBottom: "28px" }}>
         {[
           { icon: "🚗", label: "Total Rentals", value: stats.rentals, href: "/rentals" },
           { icon: "🏷️", label: "Purchases", value: stats.purchases, href: "/sales/history" },
@@ -213,7 +213,7 @@ function ProfilePageInner() {
       </div>
 
       {/* ── Quick Actions ── */}
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "32px" }}>
+      <div className="quick-actions-wrap" style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "28px" }}>
         {[
           { label: "🚗 Rent Vehicle", href: "/rent", primary: false },
           { label: "🏷️ Buy Vehicle", href: "/sales", primary: false },
@@ -222,21 +222,22 @@ function ProfilePageInner() {
           ...(profile?.role === "admin" || profile?.role === "owner" ? [{ label: "🛡️ Admin Dashboard", href: "/admin", primary: true }] : []),
         ].map(a => (
           <button key={a.label} onClick={() => router.push(a.href)}
-            style={{ background: a.primary ? "var(--red)" : "var(--navy-light)", color: a.primary ? "var(--white)" : "var(--white-muted)", fontSize: "0.84rem", padding: "9px 16px", border: a.primary ? "none" : "1px solid var(--navy-border)" }}>
+            style={{ background: a.primary ? "var(--red)" : "var(--navy-light)", color: a.primary ? "var(--white)" : "var(--white-muted)", fontSize: "0.84rem", padding: "10px 16px", border: a.primary ? "none" : "1px solid var(--navy-border)", minHeight: "44px" }}>
             {a.label}
           </button>
         ))}
       </div>
 
       {/* ── Tabs ── */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "24px", background: "var(--navy-mid)", borderRadius: "12px", padding: "5px", border: "1px solid var(--navy-border)", overflowX: "auto" }}>
+      <div className="profile-tabs">
         {([
           { key: "profile", label: "👤 Profile" },
           { key: "verification", label: "🛡️ Verification" },
           { key: "security", label: "🔒 Security" },
         ] as const).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ flex: 1, background: tab === t.key ? "var(--red)" : "transparent", color: tab === t.key ? "var(--white)" : "var(--white-muted)", padding: "9px 16px", fontSize: "0.87rem", fontWeight: tab === t.key ? 700 : 500, borderRadius: "8px", border: "none", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s" }}>
+            className="profile-tab-btn"
+            style={{ background: tab === t.key ? "var(--red)" : "transparent", color: tab === t.key ? "var(--white)" : "var(--white-muted)", fontWeight: tab === t.key ? 700 : 500 }}>
             {t.label}
           </button>
         ))}
@@ -267,7 +268,7 @@ function ProfilePageInner() {
                 ⚠️ Complete your name and phone number to unlock rentals and purchases.
               </div>
             )}
-            <button onClick={handleSave} disabled={saving} style={{ alignSelf: "flex-start", padding: "11px 28px" }}>
+            <button onClick={handleSave} disabled={saving} className="btn-mobile-full" style={{ alignSelf: "flex-start", padding: "11px 28px" }}>
               {saving ? "Saving…" : "Save Changes"}
             </button>
           </div>
@@ -373,7 +374,7 @@ function ProfilePageInner() {
                 🔒 <strong style={{ color: "var(--white-soft)" }}>Your privacy is protected.</strong> Your ID document is stored securely and is only accessible to authorised DriveEasy staff for verification purposes. It is never shared with third parties.
               </div>
 
-              <button onClick={handleVerificationSave} disabled={verSaving || uploadingId} style={{ alignSelf: "flex-start", padding: "11px 28px" }}>
+              <button onClick={handleVerificationSave} disabled={verSaving || uploadingId} className="btn-mobile-full" style={{ alignSelf: "flex-start", padding: "11px 28px" }}>
                 {uploadingId ? "Uploading…" : verSaving ? "Submitting…" : verificationStatus === "unverified" ? "Submit Verification" : "Update Verification"}
               </button>
             </div>
@@ -400,7 +401,7 @@ function ProfilePageInner() {
                   <p style={{ color: "var(--red)", fontSize: "0.78rem", margin: "4px 0 0" }}>Passwords do not match</p>
                 )}
               </div>
-              <button onClick={handlePasswordChange} disabled={pwLoading || !newPassword || newPassword !== confirmPassword} style={{ alignSelf: "flex-start", padding: "11px 28px" }}>
+              <button onClick={handlePasswordChange} disabled={pwLoading || !newPassword || newPassword !== confirmPassword} className="btn-mobile-full" style={{ alignSelf: "flex-start", padding: "11px 28px" }}>
                 {pwLoading ? "Updating…" : "Update Password"}
               </button>
             </div>

@@ -319,7 +319,7 @@ export default function AdminPage() {
       </aside>
 
       {/* ── MAIN CONTENT ── */}
-      <main style={{ flex: 1, padding: "32px 28px", overflowY: "auto" }}>
+      <main className="admin-main-content">
 
         {/* Top bar */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px", flexWrap: "wrap", gap: "12px" }}>
@@ -515,7 +515,7 @@ export default function AdminPage() {
         {/* ── OVERVIEW ── */}
         {tab === "overview" && (
           <div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "14px", marginBottom: "28px" }}>
+            <div className="admin-stats-grid">
               {[
                 { label: "Total Vehicles", value: stats.vehicles, color: "var(--white)", icon: "🚗" },
                 { label: "Total Users", value: stats.users, color: "#a855f7", icon: "👥" },
@@ -552,7 +552,7 @@ export default function AdminPage() {
               )}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div className="admin-overview-bottom">
               {[
                 { title: "Recent Rentals", items: rentals.slice(0, 5), render: (r: any) => (<><span>{r.vehicles?.make} {r.vehicles?.model}</span><span style={{ color: "var(--white-muted)", fontSize: "0.8rem" }}>{formatFCFA(r.total_price)}</span></>) },
                 { title: "Recent Sales", items: sales.slice(0, 5), render: (s: any) => (<><span>{s.vehicles?.make} {s.vehicles?.model}</span><span style={{ color: "var(--red)", fontWeight: 700, fontSize: "0.9rem" }}>{formatFCFA(s.sale_price)}</span></>) },
@@ -575,7 +575,7 @@ export default function AdminPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {vehicles.length === 0 && <div className="empty-state"><h3>No vehicles yet</h3><p>Click "+ Add Vehicle" to get started</p></div>}
             {vehicles.map(v => (
-              <div key={v.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+              <div key={v.id} className="card admin-vehicle-row">
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                   {v.image_url ? (
                     <img src={v.image_url.split(',')[0]} alt="Vehicle" style={{ width: "60px", height: "45px", objectFit: "cover", borderRadius: "6px" }} />
@@ -591,7 +591,7 @@ export default function AdminPage() {
                     </p>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <div className="admin-vehicle-actions">
                   <span className={`badge badge-${v.status}`}>{v.status}</span>
                   <button onClick={() => editVehicle(v)} style={{ background: "var(--navy-light)", color: "var(--white)", padding: "7px 14px", fontSize: "0.82rem" }}>Edit</button>
                   <button onClick={() => deleteVehicle(v.id)} style={{ background: "rgba(230,57,70,0.12)", color: "var(--red)", border: "1px solid rgba(230,57,70,0.3)", padding: "7px 14px", fontSize: "0.82rem" }}>Delete</button>
@@ -606,14 +606,14 @@ export default function AdminPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {rentals.length === 0 && <div className="empty-state"><h3>No rentals yet</h3></div>}
             {rentals.map(r => (
-              <div key={r.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+              <div key={r.id} className="card admin-rental-row">
                 <div>
                   <h3 style={{ fontSize: "0.92rem", marginBottom: "3px" }}>{r.vehicles?.make} {r.vehicles?.model}</h3>
                   <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>
                     {r.profiles?.full_name || "Customer"} · {fmtDate(r.start_date)} → {fmtDate(r.end_date)} · {formatFCFA(r.total_price)}
                   </p>
                 </div>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <div className="admin-rental-actions">
                   <span className={`badge badge-${r.status}`}>{r.status}</span>
                   {r.status === "pending" && (
                     <>

@@ -278,7 +278,7 @@ function RentalCard({ vehicle: v, onCheckout }: { vehicle: any; onCheckout: (sta
         </div>
 
         {/* Date pickers */}
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div className="date-picker-row" style={{ display: "flex", gap: "8px" }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: "0.68rem", color: "var(--white-muted)", display: "block", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>Start</label>
             <input type="date" value={startDate} min={today} onChange={e => { setStartDate(e.target.value); if (endDate && e.target.value > endDate) setEndDate(""); }} style={{ padding: "9px 10px", fontSize: "0.85rem" }} />

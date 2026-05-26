@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               marginTop: "60px",
             }}>
               <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "36px", marginBottom: "40px" }}>
+              <div className="footer-grid">
 
                   {/* Brand */}
                   <div>

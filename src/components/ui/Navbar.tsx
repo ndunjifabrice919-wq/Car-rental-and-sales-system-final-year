@@ -110,6 +110,26 @@ export default function Navbar() {
       {/* Mobile Menu */}
       {menuOpen && (
         <div style={mobileMenu}>
+          {/* User info if logged in */}
+          {user && (
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", background: "rgba(255,255,255,0.04)", borderRadius: "12px", marginBottom: "8px" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "var(--red)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1rem", flexShrink: 0 }}>
+                {(profile?.full_name || user.email || "?")[0].toUpperCase()}
+              </div>
+              <div style={{ flex: 1, overflow: "hidden" }}>
+                <p style={{ fontWeight: 700, fontSize: "0.9rem", margin: 0, color: "var(--white)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {profile?.full_name || "Your Account"}
+                </p>
+                <p style={{ fontSize: "0.75rem", color: "var(--white-muted)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {user.email}
+                </p>
+              </div>
+              {profile?.verification_status === "verified" && (
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "#34d399", background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", padding: "2px 8px", borderRadius: "100px", flexShrink: 0 }}>✓ Verified</span>
+              )}
+            </div>
+          )}
+
           {links.map((link) => (
             <Link key={link.href} href={link.href} style={{ ...mobileLinkBase, color: isActive(link.href) ? "var(--white)" : "var(--white-muted)", background: isActive(link.href) ? "var(--navy-light)" : "transparent" }}
               onClick={() => setMenuOpen(false)}>
@@ -122,13 +142,13 @@ export default function Navbar() {
             </div>
             {user ? (
               <>
-                <span style={{ color: "var(--white-muted)", fontSize: "0.82rem", padding: "4px 12px" }}>{user.email}</span>
-                <button onClick={handleLogout} style={{ ...redBtn, width: "100%", textAlign: "left" }}>{t("nav.logout")}</button>
+                <button onClick={() => { router.push("/profile"); setMenuOpen(false); }} style={{ background: "var(--navy-light)", border: "1px solid var(--navy-border)", color: "var(--white)", width: "100%", textAlign: "center", padding: "12px" }}>👤 View Profile</button>
+                <button onClick={handleLogout} style={{ ...redBtn, width: "100%", textAlign: "center", padding: "12px" }}>{t("nav.logout")}</button>
               </>
             ) : (
               <>
-                <Link href="/login" style={{ ...outlineBtnLink, display: "block", textAlign: "center" }} onClick={() => setMenuOpen(false)}>{t("nav.login")}</Link>
-                <Link href="/register" style={{ ...redBtnLink, display: "block", textAlign: "center" }} onClick={() => setMenuOpen(false)}>{t("nav.getStarted")}</Link>
+                <Link href="/login" style={{ ...outlineBtnLink, display: "block", textAlign: "center", padding: "12px", justifyContent: "center" }} onClick={() => setMenuOpen(false)}>{t("nav.login")}</Link>
+                <Link href="/register" style={{ ...redBtnLink, display: "block", textAlign: "center", padding: "12px", justifyContent: "center" }} onClick={() => setMenuOpen(false)}>{t("nav.getStarted")}</Link>
               </>
             )}
           </div>
@@ -197,13 +217,16 @@ const bar = (open: boolean, i: number): React.CSSProperties => ({
 });
 const mobileMenu: React.CSSProperties = {
   position: "fixed", top: "70px", left: 0, right: 0, zIndex: 999,
-  background: "rgba(27,43,59,0.98)", backdropFilter: "blur(20px)",
+  background: "rgba(13,27,42,0.99)", backdropFilter: "blur(20px)",
   borderBottom: "1px solid var(--navy-border)",
-  padding: "14px 20px 24px", display: "flex", flexDirection: "column", gap: "4px",
-  boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
+  padding: "14px 16px 28px", display: "flex", flexDirection: "column", gap: "4px",
+  boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+  animation: "fadeInUp 0.2s ease",
+  maxHeight: "calc(100vh - 70px)",
+  overflowY: "auto",
 };
 const mobileLinkBase: React.CSSProperties = {
-  padding: "13px 16px", borderRadius: "10px", fontSize: "0.95rem",
+  padding: "14px 16px", borderRadius: "10px", fontSize: "0.95rem",
   fontWeight: 500, textDecoration: "none", display: "flex", alignItems: "center",
-  transition: "background 0.15s",
+  transition: "background 0.15s", minHeight: "48px",
 };

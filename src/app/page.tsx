@@ -146,7 +146,7 @@ export default function HomePage() {
       <div className="page animate-in">
 
         {/* ── Greeting header with loyalty ── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px", flexWrap: "wrap", gap: "12px" }}>
+        <div className="dash-greeting" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <h1 style={{ fontSize: "clamp(1.4rem, 3vw, 1.9rem)", fontWeight: 900, marginBottom: "4px" }}>
               {greeting}{displayName ? `, ${displayName}` : ""}! 👋
@@ -297,7 +297,7 @@ export default function HomePage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {recentRentals.map((r: any) => (
-                <div key={r.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", padding: "14px 18px" }}>
+                <div key={r.id} className="card rental-list-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", padding: "14px 18px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                     {r.vehicles?.image_url ? (
                       <img src={r.vehicles.image_url} alt="" loading="lazy" decoding="async" style={{ width: "52px", height: "38px", objectFit: "cover", borderRadius: "6px", flexShrink: 0 }} />

@@ -168,9 +168,9 @@ export default function RentalsPage() {
 
             return (
               <div key={r.id} className="card animate-in" style={{ padding: 0, overflow: "hidden" }}>
-                <div style={{ display: "flex", gap: 0 }}>
+                <div className="rental-card-inner">
                   {/* Vehicle image column */}
-                  <div style={{ width: "160px", flexShrink: 0, position: "relative", display: "flex" }}>
+                  <div className="rental-img-col">
                     {v?.image_url ? (
                       <img src={v.image_url} alt={v ? `${v.make} ${v.model}` : "Vehicle"} style={{ width: "100%", height: "100%", minHeight: "160px", objectFit: "cover" }} />
                     ) : (
