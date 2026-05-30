@@ -74,6 +74,20 @@ export default function HomePage() {
   const [vehicleCount, setVehicleCount] = useState(0);
   const animVehicles = useCountUp(vehicleCount);
 
+  // Load from localStorage cache on client-side mount (avoids hydration mismatch)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cachedStats = localStorage.getItem("driveeasy-stats");
+      const cachedRentals = localStorage.getItem("driveeasy-recent-rentals");
+      const cachedVehicles = localStorage.getItem("driveeasy-featured-vehicles");
+
+      if (cachedStats) setStats(JSON.parse(cachedStats));
+      if (cachedRentals) setRecentRentals(JSON.parse(cachedRentals));
+      if (cachedVehicles) setFeaturedVehicles(JSON.parse(cachedVehicles));
+      if (cachedStats) setDataLoading(false); // Instantly bypass shimmers
+    }
+  }, []);
+
   useEffect(() => {
     // Fetch public vehicle count for landing page stats
     if (!user) {
@@ -85,7 +99,11 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user || authLoading) return;
-    setDataLoading(true);
+    // Only show loading if we don't have cached data to keep transitions seamless
+    if (stats.rentals === 0 && stats.purchases === 0 && stats.spent === 0) {
+      setDataLoading(true);
+    }
+    
     Promise.all([
       supabase.from("rentals").select("total_price, start_date, end_date, status, vehicle_id, id, vehicles(make,model,image_url)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
       supabase.from("sales").select("sale_price").eq("user_id", user.id),
@@ -93,10 +111,22 @@ export default function HomePage() {
     ]).then(([{ data: rentals }, { data: purchases }, { data: vehicles }]) => {
       const rentalTotal = (rentals || []).reduce((s: number, r: any) => s + (r.total_price || 0), 0);
       const saleTotal = (purchases || []).reduce((s: number, p: any) => s + (p.sale_price || 0), 0);
-      setStats({ rentals: rentals?.length || 0, purchases: purchases?.length || 0, spent: rentalTotal + saleTotal });
-      setRecentRentals(rentals || []);
-      setFeaturedVehicles(vehicles || []);
+      
+      const freshStats = { rentals: rentals?.length || 0, purchases: purchases?.length || 0, spent: rentalTotal + saleTotal };
+      const freshRentals = rentals || [];
+      const freshVehicles = vehicles || [];
+
+      setStats(freshStats);
+      setRecentRentals(freshRentals);
+      setFeaturedVehicles(freshVehicles);
       setDataLoading(false);
+
+      // Save to cache
+      if (typeof window !== "undefined") {
+        localStorage.setItem("driveeasy-stats", JSON.stringify(freshStats));
+        localStorage.setItem("driveeasy-recent-rentals", JSON.stringify(freshRentals));
+        localStorage.setItem("driveeasy-featured-vehicles", JSON.stringify(freshVehicles));
+      }
     });
   }, [user, authLoading]);
 

@@ -117,6 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear state immediately (optimistic) — UI responds in <100ms
     setUser(null);
     setProfile(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("driveeasy-stats");
+      localStorage.removeItem("driveeasy-recent-rentals");
+      localStorage.removeItem("driveeasy-featured-vehicles");
+    }
     // Fire server signOut in background — don't await
     supabase.auth.signOut().catch(() => {});
   };
