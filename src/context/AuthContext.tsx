@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (u: any): Promise<Profile | null> => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, full_name, phone, role, verification_status, id_number, id_document_url")
         .eq("id", u.id)
@@ -53,14 +53,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const fullName = rawMeta.full_name || rawMeta.name || u.email?.split("@")[0] || "User";
       const phone = rawMeta.phone || "";
 
-      const { data: newProfile } = await supabase
+      const { data: newProfile, error: upsertError } = await supabase
         .from("profiles")
         .upsert({ id: u.id, full_name: fullName, phone, role: "customer" }, { onConflict: "id" })
         .select("id, full_name, phone, role, verification_status, id_number, id_document_url")
         .single();
 
+      if (upsertError) {
+        console.error("Error auto-creating profile in database:", upsertError.message);
+      }
+
       return newProfile ?? null;
-    } catch {
+    } catch (err) {
+      console.error("Unexpected error in fetchProfile:", err);
       return null;
     }
   };
@@ -68,13 +73,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMounted.current = true;
 
-    // Safety net: if INITIAL_SESSION hasn't fired within 3 seconds, unblock the UI.
-    // This fixes the "stuck loading" issue on slow networks or mobile browsers.
+    // Safety net: if INITIAL_SESSION hasn't fired within 8 seconds, unblock the UI.
+    // This prevents premature redirect loops on slow mobile connections.
     const safetyTimeout = setTimeout(() => {
       if (!initialSessionReceived.current && isMounted.current) {
         setLoading(false);
       }
-    }, 3000);
+    }, 8000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {

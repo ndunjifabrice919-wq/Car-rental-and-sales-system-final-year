@@ -71,7 +71,6 @@ export default function HomePage() {
   const [recentRentals, setRecentRentals] = useState<any[]>([]);
   const [featuredVehicles, setFeaturedVehicles] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [dashProfile, setDashProfile] = useState<any>(null);
   const [vehicleCount, setVehicleCount] = useState(0);
   const animVehicles = useCountUp(vehicleCount);
 
@@ -86,20 +85,17 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user || authLoading) return;
-    refreshProfile();
     setDataLoading(true);
     Promise.all([
       supabase.from("rentals").select("total_price, start_date, end_date, status, vehicle_id, id, vehicles(make,model,image_url)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
       supabase.from("sales").select("sale_price").eq("user_id", user.id),
       supabase.from("vehicles").select("id, make, model, year, type, status, daily_rate, sale_price, fuel_type, transmission, image_url, seats, color, location").eq("status", "available").limit(6),
-      supabase.from("profiles").select("full_name, phone, id_number, id_document_url, verification_status").eq("id", user.id).single(),
-    ]).then(([{ data: rentals }, { data: purchases }, { data: vehicles }, { data: prof }]) => {
+    ]).then(([{ data: rentals }, { data: purchases }, { data: vehicles }]) => {
       const rentalTotal = (rentals || []).reduce((s: number, r: any) => s + (r.total_price || 0), 0);
       const saleTotal = (purchases || []).reduce((s: number, p: any) => s + (p.sale_price || 0), 0);
       setStats({ rentals: rentals?.length || 0, purchases: purchases?.length || 0, spent: rentalTotal + saleTotal });
       setRecentRentals(rentals || []);
       setFeaturedVehicles(vehicles || []);
-      setDashProfile(prof || profile);
       setDataLoading(false);
     });
   }, [user, authLoading]);
@@ -108,7 +104,7 @@ export default function HomePage() {
 
   /* ─── LOGGED IN DASHBOARD ─── */
   if (user) {
-    const currentProfile = dashProfile || profile;
+    const currentProfile = profile;
     const displayName = currentProfile?.full_name?.trim() ? currentProfile.full_name.split(" ")[0] : null;
     const hour = new Date().getHours();
     const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
