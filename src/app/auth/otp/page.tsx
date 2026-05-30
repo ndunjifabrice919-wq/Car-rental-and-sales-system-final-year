@@ -1,17 +1,19 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-export default function OTPPage() {
+function OTPInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<"email" | "code">("email");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email") || "");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resending, setResending] = useState(false);
+
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,3 +125,16 @@ export default function OTPPage() {
     </div>
   );
 }
+
+export default function OTPPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--navy)" }}>
+        <div className="spinner" style={{ width: "40px", height: "40px" }} />
+      </div>
+    }>
+      <OTPInner />
+    </Suspense>
+  );
+}
+

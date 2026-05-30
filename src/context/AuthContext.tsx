@@ -109,9 +109,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Clear state immediately (optimistic) — UI responds in <100ms
     setUser(null);
     setProfile(null);
+    // Fire server signOut in background — don't await
+    supabase.auth.signOut().catch(() => {});
   };
 
   const refreshProfile = async () => {

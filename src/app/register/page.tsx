@@ -17,46 +17,98 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [errorType, setErrorType] = useState<"duplicate" | "general" | "">("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // Redirect if already logged in
   useEffect(() => {
-    if (user) router.push("/");
+    if (user) router.replace("/");
   }, [user, router]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setErrorType("");
+
+    // Client-side validation
     if (!fullName.trim()) { setError("Please enter your full name."); return; }
+    if (!email.trim()) { setError("Please enter your email address."); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
     if (password !== confirm) { setError("Passwords do not match."); return; }
+
     setLoading(true);
 
+    // ─────────────────────────────────────────────────────────────────
+    // DUPLICATE EMAIL CHECK — Supabase's signUp with an existing email
+    // (when email confirmation is OFF) returns identities: [] — empty.
+    // We detect this and show a clear "email already in use" message.
+    // ─────────────────────────────────────────────────────────────────
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
+      email: email.trim().toLowerCase(),
       password,
       options: {
-        data: { full_name: fullName, phone },
+        data: { full_name: fullName.trim(), phone: phone.trim() },
         emailRedirectTo: `${window.location.origin}/auth/confirmed`,
       },
     });
 
-    if (signUpError) { setError(signUpError.message); setLoading(false); return; }
+    if (signUpError) {
+      setLoading(false);
+      const msg = signUpError.message?.toLowerCase() || "";
 
-    if (data.session) {
-      // Auto-login successful (email confirmation disabled in Supabase)
-      await supabase.from("profiles").upsert({ id: data.user!.id, full_name: fullName.trim(), phone: phone.trim() || "", role: "customer" }, { onConflict: "id" });
-      router.push("/");
+      if (
+        msg.includes("already registered") ||
+        msg.includes("already exists") ||
+        msg.includes("user already registered") ||
+        msg.includes("duplicate") ||
+        msg.includes("email address is already")
+      ) {
+        setErrorType("duplicate");
+        setError(email.trim().toLowerCase());
+      } else if (msg.includes("password") && msg.includes("weak")) {
+        setError("Your password is too weak. Use a mix of letters, numbers and symbols.");
+      } else if (msg.includes("valid email") || msg.includes("invalid email")) {
+        setError("Please enter a valid email address.");
+      } else {
+        setErrorType("general");
+        setError(signUpError.message);
+      }
       return;
     }
 
+    // ── Duplicate detection via empty identities (Supabase behaviour when
+    //    email confirmation is disabled and email already exists) ─────────
+    if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+      setLoading(false);
+      setErrorType("duplicate");
+      setError(email.trim().toLowerCase());
+      return;
+    }
+
+    // ── Session exists → email confirmation is DISABLED in Supabase;
+    //    user is already active — create profile and redirect immediately ─
+    if (data.session) {
+      await supabase.from("profiles").upsert(
+        { id: data.user!.id, full_name: fullName.trim(), phone: phone.trim() || "", role: "customer" },
+        { onConflict: "id" }
+      );
+      // No need to redirect — AuthContext will pick up the session and
+      // the useEffect above will redirect to "/"
+      return;
+    }
+
+    // ── No session → email confirmation IS enabled.
+    //    Create profile row so it exists when they confirm. ────────────────
     if (data.user) {
-      await supabase.from("profiles").upsert({ id: data.user.id, full_name: fullName.trim(), phone: phone.trim() || "", role: "customer" }, { onConflict: "id" });
+      await supabase.from("profiles").upsert(
+        { id: data.user.id, full_name: fullName.trim(), phone: phone.trim() || "", role: "customer" },
+        { onConflict: "id" }
+      );
     }
 
     setLoading(false);
-    setError("");
-    router.push("/auth/check-email?email=" + encodeURIComponent(email));
+    router.push("/auth/check-email?email=" + encodeURIComponent(email.trim().toLowerCase()));
   };
 
   const handleOAuth = async (provider: "google") => {
@@ -80,16 +132,48 @@ export default function RegisterPage() {
         <h1 className="auth-title">Create your account</h1>
         <p className="auth-subtitle">Join DriveEasy — rent or buy your dream car</p>
 
-        {error && <div className="alert alert-error" style={{ marginBottom: "16px" }}>{error}</div>}
+        {/* Duplicate email error */}
+        {errorType === "duplicate" && (
+          <div className="auth-unconfirmed-banner" style={{ marginBottom: "16px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+              <span style={{ fontSize: "1.4rem", flexShrink: 0 }}>📧</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 700, color: "#fbbf24", margin: "0 0 4px", fontSize: "0.92rem" }}>
+                  Email already registered
+                </p>
+                <p style={{ color: "var(--white-muted)", margin: "0 0 10px", fontSize: "0.83rem", lineHeight: 1.5 }}>
+                  <strong style={{ color: "var(--white-soft)" }}>{error}</strong> is already linked to a DriveEasy account.
+                </p>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <Link href="/login"
+                    style={{ background: "var(--red)", color: "#fff", padding: "8px 14px", borderRadius: "8px", fontSize: "0.82rem", fontWeight: 700, textDecoration: "none" }}>
+                    Sign In Instead →
+                  </Link>
+                  <Link href="/auth/forgot-password"
+                    style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.35)", color: "#fbbf24", padding: "8px 14px", borderRadius: "8px", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none" }}>
+                    Forgot Password?
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* General error */}
+        {errorType === "general" && error && (
+          <div className="alert alert-error" style={{ marginBottom: "16px" }}>{error}</div>
+        )}
+        {errorType === "" && error && (
+          <div className="alert alert-error" style={{ marginBottom: "16px" }}>{error}</div>
+        )}
 
         {/* OAuth */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "24px" }}>
           <button
             onClick={() => handleOAuth("google")}
             disabled={!!oauthLoading || loading}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", width: "100%", padding: "12px", background: "var(--navy-light)", border: "1.5px solid var(--navy-border)", color: "var(--white)", borderRadius: "10px", cursor: "pointer", fontSize: "0.92rem", fontWeight: 600, transition: "border-color 0.2s, background 0.2s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#4285f4"; (e.currentTarget as HTMLButtonElement).style.background = "rgba(66,133,244,0.08)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--navy-border)"; (e.currentTarget as HTMLButtonElement).style.background = "var(--navy-light)"; }}
+            className="oauth-btn"
+            id="google-register-btn"
           >
             {oauthLoading === "google" ? <div className="spinner" style={{ width: "18px", height: "18px" }} /> : (
               <svg width="18" height="18" viewBox="0 0 18 18">
@@ -103,32 +187,41 @@ export default function RegisterPage() {
           </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
-          <div style={{ flex: 1, height: "1px", background: "var(--navy-border)" }} />
-          <span style={{ color: "var(--white-muted)", fontSize: "0.78rem", fontWeight: 500 }}>OR</span>
-          <div style={{ flex: 1, height: "1px", background: "var(--navy-border)" }} />
+        <div className="auth-divider">
+          <div className="auth-divider-line" />
+          <span className="auth-divider-text">OR</span>
+          <div className="auth-divider-line" />
         </div>
 
-        <form className="auth-form" onSubmit={handleRegister}>
+        <form className="auth-form" onSubmit={handleRegister} noValidate>
           <div className="register-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-              <label className="form-label">Full Name *</label>
-              <input type="text" placeholder="e.g. Fokou Emmanuel" value={fullName} onChange={e => setFullName(e.target.value)} required autoComplete="name" />
+              <label className="form-label" htmlFor="reg-name">Full Name *</label>
+              <input id="reg-name" type="text" placeholder="e.g. Fokou Emmanuel" value={fullName}
+                onChange={e => setFullName(e.target.value)} required autoComplete="name" disabled={loading} />
             </div>
             <div className="form-group">
-              <label className="form-label">Phone <span style={{ color: "var(--white-muted)", fontWeight: 400 }}>(optional)</span></label>
-              <input type="tel" placeholder="+237 6XX XXX XXX" value={phone} onChange={e => setPhone(e.target.value)} />
+              <label className="form-label" htmlFor="reg-phone">Phone <span style={{ color: "var(--white-muted)", fontWeight: 400 }}>(optional)</span></label>
+              <input id="reg-phone" type="tel" placeholder="+237 6XX XXX XXX" value={phone}
+                onChange={e => setPhone(e.target.value)} disabled={loading} />
             </div>
             <div className="form-group">
-              <label className="form-label">Email *</label>
-              <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
+              <label className="form-label" htmlFor="reg-email">Email *</label>
+              <input id="reg-email" type="email" placeholder="you@example.com" value={email}
+                onChange={e => { setEmail(e.target.value); if (errorType === "duplicate") { setError(""); setErrorType(""); } }}
+                required autoComplete="email" autoCapitalize="none" disabled={loading}
+                style={{ borderColor: errorType === "duplicate" ? "#fbbf24" : undefined }} />
             </div>
           </div>
+
           <div className="form-group">
-            <label className="form-label">Password *</label>
+            <label className="form-label" htmlFor="reg-password">Password *</label>
             <div style={{ position: "relative" }}>
-              <input type={showPassword ? "text" : "password"} placeholder="Min. 8 characters" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" style={{ paddingRight: "44px" }} />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--white-muted)", cursor: "pointer", fontSize: "1rem", padding: 0 }}>
+              <input id="reg-password" type={showPassword ? "text" : "password"} placeholder="Min. 8 characters"
+                value={password} onChange={e => setPassword(e.target.value)} required
+                autoComplete="new-password" style={{ paddingRight: "44px" }} disabled={loading} />
+              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--white-muted)", cursor: "pointer", fontSize: "1rem", padding: 0, minHeight: "unset" }}>
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
@@ -143,17 +236,28 @@ export default function RegisterPage() {
               </div>
             )}
           </div>
+
           <div className="form-group">
-            <label className="form-label">Confirm Password *</label>
+            <label className="form-label" htmlFor="reg-confirm">Confirm Password *</label>
             <div style={{ position: "relative" }}>
-              <input type={showConfirm ? "text" : "password"} placeholder="Repeat password" value={confirm} onChange={e => setConfirm(e.target.value)} required style={{ paddingRight: "44px", borderColor: confirm && confirm !== password ? "var(--red)" : undefined }} />
-              <button type="button" onClick={() => setShowConfirm(!showConfirm)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--white-muted)", cursor: "pointer", fontSize: "1rem", padding: 0 }}>
+              <input id="reg-confirm" type={showConfirm ? "text" : "password"} placeholder="Repeat password"
+                value={confirm} onChange={e => setConfirm(e.target.value)} required
+                style={{ paddingRight: "44px", borderColor: confirm && confirm !== password ? "var(--red)" : undefined }}
+                disabled={loading} />
+              <button type="button" onClick={() => setShowConfirm(!showConfirm)}
+                style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--white-muted)", cursor: "pointer", fontSize: "1rem", padding: 0, minHeight: "unset" }}>
                 {showConfirm ? "🙈" : "👁️"}
               </button>
             </div>
+            {confirm && confirm !== password && (
+              <p style={{ color: "var(--red)", fontSize: "0.75rem", margin: "4px 0 0" }}>Passwords do not match</p>
+            )}
           </div>
-          <button type="submit" className="btn-full" disabled={loading} style={{ marginTop: "8px" }}>
-            {loading ? "Creating Account…" : "Create Free Account"}
+
+          <button type="submit" id="create-account-btn" className="btn-full" disabled={loading} style={{ marginTop: "8px" }}>
+            {loading ? (
+              <><div className="spinner" style={{ width: "16px", height: "16px" }} />Creating Account…</>
+            ) : "Create Free Account"}
           </button>
         </form>
 
@@ -163,8 +267,8 @@ export default function RegisterPage() {
 
         <p style={{ textAlign: "center", color: "var(--white-muted)", fontSize: "0.72rem", marginTop: "20px", lineHeight: 1.7 }}>
           By creating an account, you agree to DriveEasy&apos;s{" "}
-          <span style={{ color: "var(--white-soft)", cursor: "pointer" }}>Terms of Service</span> and{" "}
-          <span style={{ color: "var(--white-soft)", cursor: "pointer" }}>Privacy Policy</span>.
+          <Link href="/terms" style={{ color: "var(--white-soft)" }}>Terms of Service</Link> and{" "}
+          <Link href="/privacy" style={{ color: "var(--white-soft)" }}>Privacy Policy</Link>.
         </p>
       </div>
     </div>
