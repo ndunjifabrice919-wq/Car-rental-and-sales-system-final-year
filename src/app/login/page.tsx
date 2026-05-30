@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
-  const loginTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Redirect already-logged-in users
   useEffect(() => {
@@ -37,12 +36,6 @@ export default function LoginPage() {
     });
   }, [router]);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
-    };
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,20 +57,11 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    // 10-second timeout guard — prevents infinite loading
-    loginTimeoutRef.current = setTimeout(() => {
-      setLoading(false);
-      setError("Login is taking too long. Please check your internet connection and try again.");
-      setErrorType("general");
-    }, 10000);
-
     try {
       const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
-
-      if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
 
       if (signInError) {
         setLoading(false);
@@ -125,7 +109,6 @@ export default function LoginPage() {
         setErrorType("general");
       }
     } catch (err: any) {
-      if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
       setLoading(false);
       setError("An unexpected error occurred. Please try again.");
       setErrorType("general");
