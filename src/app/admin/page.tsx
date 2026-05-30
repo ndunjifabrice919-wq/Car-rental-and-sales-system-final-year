@@ -285,7 +285,7 @@ export default function AdminPage() {
             </button>
           </div>
           <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--white-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "12px" }}>
-            Admin Panel
+            {isOwner ? "Owner Dashboard" : "Admin Panel"}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
             {NAV_ITEMS.map(n => (
@@ -327,7 +327,9 @@ export default function AdminPage() {
             <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ display: "none", background: "var(--navy-light)", border: "none", color: "var(--white)", padding: "8px 12px", borderRadius: "8px", cursor: "pointer" }} className="mob-menu-btn">☰</button>
             <div>
               <h1 style={{ fontSize: "1.3rem", fontWeight: 800, margin: 0 }}>{NAV_ITEMS.find(n => n.key === tab)?.icon} {NAV_ITEMS.find(n => n.key === tab)?.label}</h1>
-              <p style={{ color: "var(--white-muted)", margin: 0, fontSize: "0.82rem" }}>DriveEasy {isOwner ? "Owner" : "Admin"} · {new Date().toLocaleDateString(lang === "fr" ? "fr-CM" : "en-CM", { weekday: "long", day: "numeric", month: "long" })}</p>
+              <p style={{ color: "var(--white-muted)", margin: 0, fontSize: "0.82rem" }}>
+                {isOwner ? "🏆 Owner Dashboard" : "🛡️ Admin Panel"} · {new Date().toLocaleDateString(lang === "fr" ? "fr-CM" : "en-CM", { weekday: "long", day: "numeric", month: "long" })}
+              </p>
             </div>
           </div>
           {tab === "vehicles" && (
@@ -517,26 +519,35 @@ export default function AdminPage() {
           <div>
             <div className="admin-stats-grid">
               {[
-                { label: "Total Vehicles", value: stats.vehicles, color: "var(--white)", icon: "🚗" },
-                { label: "Total Users", value: stats.users, color: "#a855f7", icon: "👥" },
-                { label: "Total Rentals", value: stats.rentals, color: "#34d399", icon: "📅" },
-                { label: "Pending Rentals", value: stats.pending, color: "#fbbf24", icon: "⏳" },
-                { label: "Total Sales", value: stats.sales, color: "#60a5fa", icon: "🏷️" },
-                { label: "Total Revenue", value: formatFCFA(stats.revenue), color: "var(--red)", icon: "💰" },
-              ].map(s => (
-                <div key={s.label} style={{ background: "var(--navy-mid)", border: "1px solid var(--navy-border)", borderRadius: "12px", padding: "18px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <span style={{ fontSize: "1.2rem" }}>{s.icon}</span>
+                { label: "Total Vehicles", value: stats.vehicles, color: "var(--white)", icon: "🚗", ownerOnly: false },
+                { label: "Total Users", value: stats.users, color: "#a855f7", icon: "👥", ownerOnly: false },
+                { label: "Total Rentals", value: stats.rentals, color: "#34d399", icon: "📅", ownerOnly: false },
+                { label: "Pending Rentals", value: stats.pending, color: "#fbbf24", icon: "⏳", ownerOnly: false },
+                { label: "Total Sales", value: stats.sales, color: "#60a5fa", icon: "🏷️", ownerOnly: false },
+                { label: "Total Revenue", value: formatFCFA(stats.revenue), color: "var(--red)", icon: "💰", ownerOnly: true },
+              ]
+                .filter(s => !s.ownerOnly || isOwner)
+                .map(s => (
+                  <div key={s.label} style={{ background: "var(--navy-mid)", border: `1px solid ${s.ownerOnly ? "rgba(230,57,70,0.35)" : "var(--navy-border)"}`, borderRadius: "12px", padding: "18px", position: "relative", overflow: "hidden" }}>
+                    {s.ownerOnly && (
+                      <div style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(230,57,70,0.15)", border: "1px solid rgba(230,57,70,0.3)", borderRadius: "100px", padding: "2px 8px", fontSize: "0.6rem", fontWeight: 800, color: "var(--red)", letterSpacing: "0.08em" }}>OWNER</div>
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                      <span style={{ fontSize: "1.2rem" }}>{s.icon}</span>
+                    </div>
+                    <p style={{ fontSize: "1.5rem", fontWeight: 800, margin: "0 0 4px", color: s.color }}>{s.value}</p>
+                    <p style={{ color: "var(--white-muted)", fontSize: "0.78rem", margin: 0 }}>{s.label}</p>
                   </div>
-                  <p style={{ fontSize: "1.5rem", fontWeight: 800, margin: "0 0 4px", color: s.color }}>{s.value}</p>
-                  <p style={{ color: "var(--white-muted)", fontSize: "0.78rem", margin: 0 }}>{s.label}</p>
-                </div>
-              ))}
+                ))}
             </div>
 
-            {/* REVENUE GRAPH */}
-            <div style={{ background: "var(--navy-mid)", border: "1px solid var(--navy-border)", borderRadius: "12px", padding: "20px", marginBottom: "28px", height: "300px" }}>
-              <h3 style={{ marginBottom: "14px", fontSize: "0.95rem" }}>Revenue Trend (Last 14 Days)</h3>
+            {/* REVENUE GRAPH — Owner only */}
+            {isOwner && (
+            <div style={{ background: "var(--navy-mid)", border: "1px solid rgba(230,57,70,0.3)", borderRadius: "12px", padding: "20px", marginBottom: "28px", height: "300px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                <h3 style={{ fontSize: "0.95rem", margin: 0 }}>💰 Revenue Trend (Last 14 Days)</h3>
+                <span style={{ background: "rgba(230,57,70,0.15)", border: "1px solid rgba(230,57,70,0.3)", borderRadius: "100px", padding: "2px 8px", fontSize: "0.6rem", fontWeight: 800, color: "var(--red)", letterSpacing: "0.08em" }}>OWNER ONLY</span>
+              </div>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
@@ -551,6 +562,7 @@ export default function AdminPage() {
                 <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--white-muted)", fontSize: "0.85rem" }}>No revenue data yet</div>
               )}
             </div>
+            )}
 
             <div className="admin-overview-bottom">
               {[
@@ -636,6 +648,11 @@ export default function AdminPage() {
         {/* ── SALES ── */}
         {tab === "sales" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {!isOwner && (
+              <div style={{ background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: "10px", padding: "10px 16px", fontSize: "0.83rem", color: "#60a5fa", marginBottom: "4px" }}>
+                ℹ️ Sale prices are visible to the Owner only. You can see transaction records below.
+              </div>
+            )}
             {sales.length === 0 && <div className="empty-state"><h3>No sales yet</h3></div>}
             {sales.map(s => (
               <div key={s.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
@@ -643,7 +660,11 @@ export default function AdminPage() {
                   <h3 style={{ fontSize: "0.92rem", marginBottom: "3px" }}>{s.vehicles?.make} {s.vehicles?.model}</h3>
                   <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>{s.profiles?.full_name || "Customer"} · {fmtDate(s.created_at)}</p>
                 </div>
-                <span style={{ color: "var(--red)", fontWeight: 800, fontSize: "1rem" }}>{formatFCFA(s.sale_price)}</span>
+                {isOwner ? (
+                  <span style={{ color: "var(--red)", fontWeight: 800, fontSize: "1rem" }}>{formatFCFA(s.sale_price)}</span>
+                ) : (
+                  <span style={{ color: "var(--navy-border)", fontWeight: 600, fontSize: "0.82rem", fontStyle: "italic" }}>Price hidden</span>
+                )}
               </div>
             ))}
           </div>

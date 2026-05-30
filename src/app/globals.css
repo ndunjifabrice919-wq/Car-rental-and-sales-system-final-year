@@ -464,6 +464,16 @@ hr {
   50%       { box-shadow: 0 0 0 8px transparent; }
 }
 
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
 .animate-in {
   animation: fadeInUp 0.5s ease both;
 }
@@ -507,8 +517,9 @@ hr {
   border-radius: var(--radius-xl);
   padding: 48px 40px;
   width: 100%;
-  max-width: 440px;
+  max-width: min(440px, 100%);
   box-shadow: var(--shadow-card);
+  animation: scaleIn 0.35s ease both;
 }
 
 .auth-logo {
@@ -608,6 +619,78 @@ hr {
   background: rgba(16, 185, 129, 0.12);
   border: 1px solid rgba(16, 185, 129, 0.3);
   color: #34d399;
+}
+
+.alert-info {
+  background: rgba(96, 165, 250, 0.10);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  color: #60a5fa;
+}
+
+/* ===========================
+   AUTH — NEW COMPONENTS
+=========================== */
+
+/* OAuth provider button */
+.oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  background: var(--navy-light);
+  border: 1.5px solid var(--navy-border);
+  color: var(--white);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 600;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  min-height: 48px;
+}
+
+.oauth-btn:hover:not(:disabled) {
+  border-color: #4285f4;
+  background: rgba(66, 133, 244, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(66,133,244,0.15);
+}
+
+.oauth-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* OR divider */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.auth-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--navy-border);
+}
+
+.auth-divider-text {
+  color: var(--white-muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+/* Email-not-confirmed warning banner */
+.auth-unconfirmed-banner {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  animation: fadeIn 0.3s ease;
 }
 
 /* ===========================
@@ -905,6 +988,25 @@ textarea {
   .btn-mobile-full {
     width: 100% !important;
   }
+
+  /* Auth card: reduce padding on small phones */
+  .auth-card {
+    padding: 32px 20px !important;
+    border-radius: 16px !important;
+  }
+
+  /* Auth page: top-align on very small screens so form isn't cut off */
+  .auth-page {
+    align-items: flex-start;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  /* Register form: collapse 2-col grid to 1-col on phones */
+  .register-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
 
   /* Profile stats-container: 3 columns, smaller size (tiny boxes going to the right) */
   .profile-stats-container {

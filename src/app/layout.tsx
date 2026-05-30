@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/ui/Navbar";
@@ -19,6 +19,18 @@ export const metadata: Metadata = {
   description:
     "Rent or buy quality vehicles in Buea, Douala and Yaoundé. FCFA pricing, instant booking, Orange Money & MTN MoMo payments.",
   keywords: "car rental cameroon, buy car cameroon, rent car buea, voiture location cameroun",
+  openGraph: {
+    title: "DriveEasy — Car Rental & Sales",
+    description: "Rent or buy quality vehicles across Cameroon. Instant booking, FCFA pricing.",
+    type: "website",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0D1B2A",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 import TopBanner from "@/components/ui/TopBanner";
@@ -31,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
             <TopBanner />
             <Navbar />
-            <main>{children}</main>
+            <main style={{ minHeight: "calc(100vh - 68px)" }}>{children}</main>
 
             {/* Site Footer */}
             <footer style={{

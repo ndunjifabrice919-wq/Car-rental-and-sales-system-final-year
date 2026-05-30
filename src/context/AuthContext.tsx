@@ -33,9 +33,10 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  // Start loading=true; flip to false once we have the initial session
   const [loading, setLoading] = useState(true);
   const isMounted = useRef(true);
+  // Track if we've received the INITIAL_SESSION event
+  const initialSessionReceived = useRef(false);
 
   const fetchProfile = async (u: any): Promise<Profile | null> => {
     try {
@@ -67,18 +68,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMounted.current = true;
 
-    // Use onAuthStateChange as the SINGLE source of truth.
-    // It fires immediately on mount with the persisted session (INITIAL_SESSION event),
-    // so we don't need a separate getSession() call.
+    // Safety net: if INITIAL_SESSION hasn't fired within 3 seconds, unblock the UI.
+    // This fixes the "stuck loading" issue on slow networks or mobile browsers.
+    const safetyTimeout = setTimeout(() => {
+      if (!initialSessionReceived.current && isMounted.current) {
+        setLoading(false);
+      }
+    }, 3000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        const u = session?.user ?? null;
-
         if (!isMounted.current) return;
+
+        // Mark that we've received at least one event (unblocks safety timeout)
+        if (event === "INITIAL_SESSION") {
+          initialSessionReceived.current = true;
+          clearTimeout(safetyTimeout);
+        }
+
+        const u = session?.user ?? null;
         setUser(u);
 
         if (u) {
-          // Don't block UI — resolve loading immediately, then fetch profile in background
+          // Unblock UI immediately, load profile in background
           setLoading(false);
           const prof = await fetchProfile(u);
           if (isMounted.current) setProfile(prof);
@@ -91,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted.current = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

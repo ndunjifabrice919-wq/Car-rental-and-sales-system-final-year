@@ -110,7 +110,7 @@ export default function RegisterPage() {
         </div>
 
         <form className="auth-form" onSubmit={handleRegister}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          <div className="register-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             <div className="form-group" style={{ gridColumn: "1 / -1" }}>
               <label className="form-label">Full Name *</label>
               <input type="text" placeholder="e.g. Fokou Emmanuel" value={fullName} onChange={e => setFullName(e.target.value)} required autoComplete="name" />
