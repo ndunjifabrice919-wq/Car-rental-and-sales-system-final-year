@@ -18,6 +18,39 @@ async function send(params: Record<string, string>) {
 }
 
 /* ─────────────────────────────────────
+   TWO-STEP VERIFICATION CODE
+   Returns true if sent, false if EmailJS
+   is not yet configured (dev mode).
+───────────────────────────────────── */
+export async function emailVerificationCode(params: {
+  userEmail: string;
+  userName: string;
+  code: string;
+}): Promise<boolean> {
+  if (!PUBLIC_KEY || PUBLIC_KEY === "your_public_key") {
+    // EmailJS not yet configured — dev mode, caller will show fallback
+    return false;
+  }
+  try {
+    await emailjs.send(
+      SERVICE_ID,
+      TEMPLATE_ID,
+      {
+        to_email: params.userEmail,
+        to_name:  params.userName,
+        subject:  "🔐 Your DriveEasy Sign-In Code",
+        message:  `Hello ${params.userName},\n\nYour DriveEasy two-step verification code is:\n\n  ${params.code}\n\nThis code expires in 10 minutes. Do not share it with anyone.\n\nIf you did not request this, please change your password immediately.\n\nDriveEasy Team · Buea, Cameroon`,
+      },
+      PUBLIC_KEY
+    );
+    return true;
+  } catch (e) {
+    console.warn("EmailJS OTP send failed:", e);
+    return false;
+  }
+}
+
+/* ─────────────────────────────────────
    RENTAL BOOKED
    → user confirmation
    → admin notification

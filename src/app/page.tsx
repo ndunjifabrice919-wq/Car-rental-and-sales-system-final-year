@@ -132,6 +132,12 @@ export default function HomePage() {
 
   if (authLoading) return <div className="loading"><div className="spinner" /></div>;
 
+  /* ─── ADMIN/OWNER → redirect straight to admin panel ─── */
+  if (user && (profile?.role === "admin" || profile?.role === "owner")) {
+    router.replace("/admin");
+    return <div className="loading"><div className="spinner" /></div>;
+  }
+
   /* ─── LOGGED IN DASHBOARD ─── */
   if (user) {
     const currentProfile = profile;

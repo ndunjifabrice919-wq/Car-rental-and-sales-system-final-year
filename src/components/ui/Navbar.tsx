@@ -26,7 +26,15 @@ export default function Navbar() {
     signOut(); // optimistic — state already cleared, server call is background
   };
 
-  const userLinks = [
+  const isAdminOrOwner = profile?.role === "admin" || profile?.role === "owner";
+
+  // Admin/Owner only see management links — no customer pages
+  const adminLinks = [
+    { href: "/admin", label: profile?.role === "owner" ? "⚡ Owner Dashboard" : "🛡️ Admin Dashboard" },
+  ];
+
+  // Customers see full navigation
+  const customerLinks = [
     { href: "/", label: t("nav.home") },
     { href: "/vehicles", label: "🚗 Vehicles" },
     { href: "/rent", label: t("nav.rent") },
@@ -34,16 +42,13 @@ export default function Navbar() {
     { href: "/rentals", label: t("nav.myRentals") },
     { href: "/sales/history", label: t("nav.myPurchases") },
     { href: "/favourites", label: "❤️ Saved" },
-    ...(profile?.role === "admin" || profile?.role === "owner"
-      ? [{ href: "/admin", label: profile?.role === "owner" ? t("nav.owner") : t("nav.admin") }]
-      : []),
   ];
 
   const guestLinks = [
     { href: "/", label: t("nav.home") },
   ];
 
-  const links = user ? userLinks : guestLinks;
+  const links = user ? (isAdminOrOwner ? adminLinks : customerLinks) : guestLinks;
   const isActive = (href: string) => href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   const LangToggle = () => (

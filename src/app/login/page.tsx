@@ -1,64 +1,86 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { emailVerificationCode } from "@/lib/email";
+
+// ── Helpers ─────────────────────────────────────────────────
+function generateCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [errorType, setErrorType] = useState<"general" | "unconfirmed" | "invalid" | "">("");
+
+  // ── Step state ──────────────────────────────────────────────
+  const [step, setStep] = useState<"credentials" | "otp">("credentials");
+
+  // ── Step 1 state ────────────────────────────────────────────
+  const [email, setEmail]           = useState("");
+  const [password, setPassword]     = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState("");
+  const [errorType, setErrorType]   = useState<"general" | "unconfirmed" | "invalid" | "">("");
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
 
-  // Redirect already-logged-in users
+  // ── Step 2 (OTP) state ──────────────────────────────────────
+  const [otpCode, setOtpCode]           = useState("");             // the code user types
+  const [generatedCode, setGeneratedCode] = useState("");           // the code we generated
+  const [otpUserName, setOtpUserName]   = useState("");
+  const [devFallback, setDevFallback]   = useState(false);          // EmailJS not configured
+  const [devCode, setDevCode]           = useState("");             // code shown in dev banner
+  const [otpError, setOtpError]         = useState("");
+  const [otpLoading, setOtpLoading]     = useState(false);
+  const [resending, setResending]       = useState(false);
+  const [secondsLeft, setSecondsLeft]   = useState(600);            // 10-minute expiry
+  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionRef = useRef<any>(null);                             // holds the supabase session
+
+  // ── Redirect already-logged-in users ────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         const { data: prof } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
-        if (prof?.role === "admin" || prof?.role === "owner") {
-          router.replace("/admin");
-        } else {
-          router.replace("/");
-        }
+          .from("profiles").select("role").eq("id", session.user.id).single();
+        router.replace(prof?.role === "admin" || prof?.role === "owner" ? "/admin" : "/");
       }
     });
   }, [router]);
 
+  // ── OTP countdown timer ─────────────────────────────────────
+  const startTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setSecondsLeft(600);
+    timerRef.current = setInterval(() => {
+      setSecondsLeft(s => {
+        if (s <= 1) { clearInterval(timerRef.current!); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+  }, []);
 
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+  // ── Step 1: verify password ──────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setErrorType("");
-    setSuccessMsg("");
-    setResendSent(false);
+    setError(""); setErrorType(""); setSuccessMsg(""); setResendSent(false);
 
-    if (!email.trim()) {
-      setError("Please enter your email address.");
-      setErrorType("general");
-      return;
-    }
-    if (!password) {
-      setError("Please enter your password.");
-      setErrorType("general");
-      return;
-    }
+    if (!email.trim()) { setError("Please enter your email address."); setErrorType("general"); return; }
+    if (!password)     { setError("Please enter your password.");      setErrorType("general"); return; }
 
     setLoading(true);
 
     try {
-      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
@@ -66,25 +88,15 @@ export default function LoginPage() {
       if (signInError) {
         setLoading(false);
         const msg = signInError.message?.toLowerCase() || "";
-
         if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
           setErrorType("unconfirmed");
           setError("Your email hasn't been confirmed yet. Check your inbox for the confirmation link.");
-        } else if (
-          msg.includes("invalid login") ||
-          msg.includes("invalid credentials") ||
-          msg.includes("wrong password") ||
-          msg.includes("user not found") ||
-          msg.includes("no user found")
-        ) {
+        } else if (msg.includes("invalid login") || msg.includes("invalid credentials") || msg.includes("wrong password") || msg.includes("user not found") || msg.includes("no user found")) {
           setErrorType("invalid");
           setError("Incorrect email or password. Please try again.");
         } else if (msg.includes("rate limit") || msg.includes("too many")) {
           setErrorType("general");
           setError("Too many login attempts. Please wait a few minutes and try again.");
-        } else if (msg.includes("network") || msg.includes("fetch")) {
-          setErrorType("general");
-          setError("Network error. Please check your connection and try again.");
         } else {
           setErrorType("general");
           setError(signInError.message || "Login failed. Please try again.");
@@ -92,41 +104,133 @@ export default function LoginPage() {
         return;
       }
 
-      if (user) {
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-        if (prof?.role === "admin" || prof?.role === "owner") {
-          router.replace("/admin");
-        } else {
-          router.replace("/");
-        }
-      } else {
+      if (!data?.user) {
         setLoading(false);
         setError("Something went wrong. Please try again.");
         setErrorType("general");
+        return;
       }
-    } catch (err: any) {
+
+      // ✅ Password verified — save session reference, sign out temporarily,
+      //    then send OTP before granting full access.
+      sessionRef.current = data.session;
+      const userName = data.user.user_metadata?.full_name || data.user.email?.split("@")[0] || "User";
+      setOtpUserName(userName);
+
+      // Sign out so they don't have a session until OTP is verified
+      await supabase.auth.signOut();
+
+      await triggerOTP(email.trim().toLowerCase(), userName);
+      setLoading(false);
+
+    } catch {
       setLoading(false);
       setError("An unexpected error occurred. Please try again.");
       setErrorType("general");
     }
   };
 
-  const handleResendConfirmation = async () => {
-    if (!email.trim()) {
-      setError("Please enter your email address above first.");
+  // ── Send/Resend OTP ─────────────────────────────────────────
+  const triggerOTP = async (userEmail: string, userName: string) => {
+    const code = generateCode();
+    setGeneratedCode(code);
+    setOtpCode("");
+    setOtpError("");
+    startTimer();
+
+    const sent = await emailVerificationCode({ userEmail, userName, code });
+
+    if (!sent) {
+      // EmailJS not configured — dev fallback
+      setDevFallback(true);
+      setDevCode(code);
+    } else {
+      setDevFallback(false);
+      setDevCode("");
+    }
+
+    setStep("otp");
+  };
+
+  const handleResendOTP = async () => {
+    setResending(true);
+    await triggerOTP(email.trim().toLowerCase(), otpUserName);
+    setResending(false);
+  };
+
+  // ── Step 2: verify OTP code ─────────────────────────────────
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOtpError("");
+
+    if (secondsLeft === 0) {
+      setOtpError("This code has expired. Please request a new one.");
       return;
     }
+    if (otpCode.trim() !== generatedCode) {
+      setOtpError("Incorrect code. Please check your email and try again.");
+      return;
+    }
+
+    setOtpLoading(true);
+
+    // Re-sign in to restore the session now that OTP is verified
+    const { data, error: reSignInError } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (reSignInError || !data?.user) {
+      setOtpLoading(false);
+      setOtpError("Could not complete sign-in. Please go back and try again.");
+      return;
+    }
+
+    // Redirect based on role
+    const { data: prof } = await supabase
+      .from("profiles").select("role").eq("id", data.user.id).single();
+
+    if (prof?.role === "admin" || prof?.role === "owner") {
+      router.replace("/admin");
+    } else {
+      router.replace("/");
+    }
+  };
+
+  // ── Cancel OTP — go back to credentials ─────────────────────
+  const handleCancelOTP = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setStep("credentials");
+    setOtpCode("");
+    setOtpError("");
+    setGeneratedCode("");
+    setDevFallback(false);
+    setDevCode("");
+    setPassword(""); // clear password for security
+  };
+
+  // ── Google OAuth ─────────────────────────────────────────────
+  const handleOAuth = async (provider: "google") => {
+    setOauthLoading(provider);
+    setError(""); setErrorType("");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/`,
+        queryParams: { prompt: "select_account" },
+      },
+    });
+    if (error) { setError(error.message); setErrorType("general"); setOauthLoading(null); }
+  };
+
+  // ── Resend email confirmation ────────────────────────────────
+  const handleResendConfirmation = async () => {
+    if (!email.trim()) { setError("Please enter your email address above first."); return; }
     setResendLoading(true);
     const { error: resendError } = await supabase.auth.resend({
       type: "signup",
       email: email.trim().toLowerCase(),
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/confirmed`,
-      },
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirmed` },
     });
     setResendLoading(false);
     if (resendError) {
@@ -138,24 +242,148 @@ export default function LoginPage() {
     }
   };
 
-  const handleOAuth = async (provider: "google") => {
-    setOauthLoading(provider);
-    setError("");
-    setErrorType("");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/`,
-        queryParams: { prompt: "select_account" },
-      },
-    });
-    if (error) {
-      setError(error.message);
-      setErrorType("general");
-      setOauthLoading(null);
-    }
-  };
+  // ════════════════════════════════════════════════════════════
+  // OTP SCREEN
+  // ════════════════════════════════════════════════════════════
+  if (step === "otp") {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          {/* Logo */}
+          <div className="auth-logo"><span>Drive</span>Easy</div>
 
+          {/* Icon */}
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <div style={{
+              width: "72px", height: "72px", borderRadius: "50%",
+              background: "rgba(96,165,250,0.1)", border: "2px solid rgba(96,165,250,0.3)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "2rem", margin: "0 auto 16px",
+              boxShadow: "0 0 24px rgba(96,165,250,0.15)",
+            }}>🔐</div>
+            <h1 className="auth-title" style={{ marginBottom: "6px" }}>Two-Step Verification</h1>
+            <p className="auth-subtitle">
+              {devFallback
+                ? "Configure EmailJS to receive codes by email. For now, use the code below."
+                : <>We sent a 6-digit code to <strong style={{ color: "var(--white-soft)" }}>{email}</strong></>
+              }
+            </p>
+          </div>
+
+          {/* ── Developer Fallback Banner ── */}
+          {devFallback && (
+            <div style={{
+              background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.35)",
+              borderRadius: "14px", padding: "16px 18px", marginBottom: "20px",
+            }}>
+              <p style={{ fontWeight: 700, color: "#fbbf24", margin: "0 0 6px", fontSize: "0.85rem" }}>
+                ⚠️ Developer Mode — EmailJS not configured
+              </p>
+              <p style={{ color: "var(--white-muted)", margin: "0 0 10px", fontSize: "0.8rem" }}>
+                Configure <code>NEXT_PUBLIC_EMAILJS_*</code> keys in <code>.env.local</code> to send real emails. Your test code is:
+              </p>
+              <div style={{
+                background: "rgba(251,191,36,0.12)", borderRadius: "10px",
+                padding: "12px 16px", textAlign: "center",
+                fontFamily: "monospace", fontSize: "2rem", fontWeight: 900,
+                letterSpacing: "0.3em", color: "#fbbf24",
+              }}>{devCode}</div>
+            </div>
+          )}
+
+          {/* ── Error ── */}
+          {otpError && (
+            <div className="alert alert-error" style={{ marginBottom: "16px" }}>{otpError}</div>
+          )}
+
+          {/* ── OTP Input Form ── */}
+          <form onSubmit={handleVerifyOTP} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="form-group">
+              <label className="form-label" style={{ textAlign: "center", display: "block" }}>
+                Enter your 6-digit code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={otpCode}
+                onChange={e => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                required
+                autoFocus
+                maxLength={6}
+                style={{
+                  textAlign: "center", fontSize: "2.2rem", fontWeight: 900,
+                  letterSpacing: "0.45em", padding: "18px 16px",
+                  borderColor: otpCode.length === 6 ? "rgba(96,165,250,0.5)" : undefined,
+                }}
+              />
+            </div>
+
+            {/* Timer */}
+            <div style={{ textAlign: "center" }}>
+              {secondsLeft > 0 ? (
+                <p style={{ color: "var(--white-muted)", fontSize: "0.8rem", margin: 0 }}>
+                  Code expires in{" "}
+                  <span style={{ color: secondsLeft < 60 ? "var(--red)" : "#60a5fa", fontWeight: 700 }}>
+                    {fmtTime(secondsLeft)}
+                  </span>
+                </p>
+              ) : (
+                <p style={{ color: "var(--red)", fontSize: "0.82rem", fontWeight: 600, margin: 0 }}>
+                  ⏰ Code expired — request a new one below
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              id="verify-otp-btn"
+              className="btn-full"
+              disabled={otpLoading || otpCode.length !== 6 || secondsLeft === 0}
+            >
+              {otpLoading ? (
+                <><div className="spinner" style={{ width: "16px", height: "16px" }} /> Verifying…</>
+              ) : "✅ Verify & Sign In"}
+            </button>
+          </form>
+
+          {/* ── Resend + Cancel ── */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "20px", flexWrap: "wrap", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={handleResendOTP}
+              disabled={resending}
+              style={{
+                background: "none", border: "none", color: "var(--red)",
+                cursor: resending ? "not-allowed" : "pointer",
+                fontSize: "0.83rem", fontWeight: 600, padding: 0,
+              }}
+            >
+              {resending ? "Sending…" : "📨 Resend code"}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelOTP}
+              style={{
+                background: "none", border: "none", color: "var(--white-muted)",
+                cursor: "pointer", fontSize: "0.83rem", padding: 0,
+              }}
+            >
+              ← Back to login
+            </button>
+          </div>
+
+          <p style={{ textAlign: "center", color: "var(--white-muted)", fontSize: "0.73rem", marginTop: "24px", lineHeight: 1.7 }}>
+            This extra step keeps your account safe. Even if someone knows your password, they cannot sign in without access to your email.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // CREDENTIALS SCREEN (Step 1)
+  // ════════════════════════════════════════════════════════════
   return (
     <div className="auth-page">
       <div className="auth-card">
@@ -165,9 +393,7 @@ export default function LoginPage() {
 
         {/* Success message */}
         {successMsg && (
-          <div className="alert alert-success" style={{ marginBottom: "16px" }}>
-            {successMsg}
-          </div>
+          <div className="alert alert-success" style={{ marginBottom: "16px" }}>{successMsg}</div>
         )}
 
         {/* General error */}
@@ -184,19 +410,17 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Email not confirmed banner — prominent and actionable */}
+        {/* Email not confirmed banner */}
         {errorType === "unconfirmed" && (
           <div className="auth-unconfirmed-banner" style={{ marginBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
               <span style={{ fontSize: "1.4rem", flexShrink: 0 }}>📧</span>
               <div style={{ flex: 1 }}>
-                <p style={{
-                  fontWeight: 700, color: "#fbbf24", margin: "0 0 4px", fontSize: "0.92rem"
-                }}>
+                <p style={{ fontWeight: 700, color: "#fbbf24", margin: "0 0 4px", fontSize: "0.92rem" }}>
                   Email not confirmed
                 </p>
                 <p style={{ color: "var(--white-muted)", margin: "0 0 12px", fontSize: "0.83rem", lineHeight: 1.5 }}>
-                  You need to confirm your email before you can sign in. Check your inbox for a confirmation link from DriveEasy.
+                  You need to confirm your email before signing in. Check your inbox for the confirmation link.
                 </p>
                 {resendSent ? (
                   <p style={{ color: "#34d399", fontSize: "0.82rem", fontWeight: 600, margin: 0 }}>
@@ -208,15 +432,9 @@ export default function LoginPage() {
                     onClick={handleResendConfirmation}
                     disabled={resendLoading}
                     style={{
-                      background: "rgba(251,191,36,0.15)",
-                      border: "1px solid rgba(251,191,36,0.4)",
-                      color: "#fbbf24",
-                      padding: "8px 16px",
-                      fontSize: "0.83rem",
-                      fontWeight: 700,
-                      borderRadius: "8px",
-                      cursor: resendLoading ? "not-allowed" : "pointer",
-                      minHeight: "unset",
+                      background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.4)",
+                      color: "#fbbf24", padding: "8px 16px", fontSize: "0.83rem", fontWeight: 700,
+                      borderRadius: "8px", cursor: resendLoading ? "not-allowed" : "pointer", minHeight: "unset",
                     }}
                   >
                     {resendLoading ? "Sending…" : "📨 Resend confirmation email"}
@@ -227,7 +445,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* OAuth buttons */}
+        {/* Google OAuth */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "24px" }}>
           <button
             onClick={() => handleOAuth("google")}
@@ -317,15 +535,25 @@ export default function LoginPage() {
             style={{ marginTop: "8px" }}
           >
             {loading ? (
-              <>
-                <div className="spinner" style={{ width: "16px", height: "16px" }} />
-                Signing in…
-              </>
-            ) : "Sign In with Email"}
+              <><div className="spinner" style={{ width: "16px", height: "16px" }} /> Signing in…</>
+            ) : "Sign In with Email →"}
           </button>
         </form>
 
-        <div className="auth-footer">
+        {/* 2FA notice */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.2)",
+          borderRadius: "10px", padding: "10px 14px", marginTop: "16px",
+        }}>
+          <span style={{ fontSize: "1rem" }}>🔐</span>
+          <p style={{ color: "var(--white-muted)", fontSize: "0.75rem", margin: 0, lineHeight: 1.5 }}>
+            <strong style={{ color: "#60a5fa" }}>Two-step verification is enabled.</strong>{" "}
+            After entering your password, you&apos;ll receive a 6-digit code to confirm it&apos;s really you.
+          </p>
+        </div>
+
+        <div className="auth-footer" style={{ marginTop: "20px" }}>
           Don&apos;t have an account?{" "}
           <Link href="/register">Create one free</Link>
         </div>

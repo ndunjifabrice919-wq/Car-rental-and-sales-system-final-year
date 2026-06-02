@@ -1,10 +1,15 @@
 "use client";
 import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function WhatsAppButton() {
+  const { profile } = useAuth();
   const [hovered, setHovered] = useState(false);
   const phone = "237672221937"; // DriveEasy WhatsApp
   const message = encodeURIComponent("Hello DriveEasy! I'd like to enquire about a vehicle.");
+
+  // Hide for admins/owners — they manage the platform, not support customers
+  if (profile?.role === "admin" || profile?.role === "owner") return null;
 
   return (
     <a
