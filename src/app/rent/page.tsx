@@ -13,6 +13,10 @@ import FavouriteButton from "@/components/ui/FavouriteButton";
 import { CITIES_BY_REGION } from "@/lib/locations";
 import { useLang } from "@/context/LangContext";
 
+const CACHE_KEY = "driveeasy-vehicles-rent";
+// Only the columns the rental cards actually use
+const VEHICLE_COLUMNS = "id,make,model,year,type,status,daily_rate,image_url,fuel_type,transmission,color,seats,mileage,location,created_at";
+
 function VehicleShimmer() {
   return (
     <div style={{ borderRadius: "16px", overflow: "hidden", background: "var(--navy-mid)", border: "1px solid var(--navy-border)" }}>
@@ -45,9 +49,23 @@ export default function RentPage() {
   const [verGate, setVerGate] = useState<{ missing: string[] } | null>(null);
 
   useEffect(() => {
+    // 1. Show cached data instantly
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          setVehicles(JSON.parse(cached));
+          setLoading(false);
+        } catch { /* ignore */ }
+      }
+    }
+
+    // 2. Load fresh vehicles immediately (don't wait for session)
+    loadVehicles();
+
+    // 3. Check session in parallel
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.push("/login"); return; }
-      loadVehicles();
+      if (!session) { router.push("/login"); }
     });
 
     const channel = supabase.channel("realtime:vehicles")
@@ -55,13 +73,24 @@ export default function RentPage() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadVehicles = async () => {
-    setLoading(true);
-    const { data } = await supabase.from("vehicles").select("*").in("type", ["rental", "both"]).eq("status", "available").order("created_at", { ascending: false });
-    setVehicles(data || []);
-    setLoading(false);
+    const { data } = await supabase
+      .from("vehicles")
+      .select(VEHICLE_COLUMNS)
+      .in("type", ["rental", "both"])
+      .eq("status", "available")
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      setVehicles(data);
+      setLoading(false);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      }
+    }
   };
 
   const filtered = useMemo(() => {

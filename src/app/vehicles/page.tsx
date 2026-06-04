@@ -8,6 +8,8 @@ import { formatFCFA } from "@/lib/currency";
 import { CITIES_BY_REGION } from "@/lib/locations";
 import FavouriteButton from "@/components/ui/FavouriteButton";
 
+const CACHE_KEY = "driveeasy-vehicles-all";
+
 type VehicleTab = "all" | "rental" | "sale" | "both";
 
 function VehicleShimmer() {
@@ -35,7 +37,7 @@ function TypeBadge({ type }: { type: string }) {
       padding: "3px 10px", borderRadius: "100px", fontSize: "0.67rem", fontWeight: 800,
       letterSpacing: "0.06em", textTransform: "uppercase",
     }}>
-      🔑 Rent & Buy
+      🔑 Rent &amp; Buy
     </span>
   );
   if (type === "rental") return (
@@ -211,6 +213,9 @@ const TABS: { key: VehicleTab; label: string; icon: string }[] = [
   { key: "both", label: "Rent & Buy", icon: "⭐" },
 ];
 
+// Only select the columns actually used on this page
+const VEHICLE_COLUMNS = "id,make,model,year,type,status,daily_rate,sale_price,image_url,fuel_type,transmission,color,seats,mileage,description,location,created_at";
+
 export default function VehiclesPage() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -224,26 +229,48 @@ export default function VehiclesPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
+    // 1. Show cached data instantly (stale-while-revalidate)
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          setVehicles(JSON.parse(cached));
+          setLoading(false); // skip shimmers if we have cache
+        } catch { /* ignore */ }
+      }
+    }
+
+    // 2. Load fresh data from DB immediately (no waiting for session)
+    loadVehicles();
+
+    // 3. Check session in parallel (redirect if not logged in)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.push("/login"); return; }
-      loadVehicles();
+      if (!session) { router.push("/login"); }
     });
 
+    // 4. Real-time updates
     const channel = supabase.channel("realtime:vehicles-page")
       .on("postgres_changes", { event: "*", schema: "public", table: "vehicles" }, () => loadVehicles())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadVehicles = async () => {
-    setLoading(true);
     const { data } = await supabase
       .from("vehicles")
-      .select("*")
+      .select(VEHICLE_COLUMNS)
       .eq("status", "available")
       .order("created_at", { ascending: false });
-    setVehicles(data || []);
-    setLoading(false);
+
+    if (data) {
+      setVehicles(data);
+      setLoading(false);
+      // Update cache
+      if (typeof window !== "undefined") {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      }
+    }
   };
 
   const tabCounts = useMemo(() => {

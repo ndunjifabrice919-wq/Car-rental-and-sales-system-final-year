@@ -121,6 +121,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("driveeasy-stats");
       localStorage.removeItem("driveeasy-recent-rentals");
       localStorage.removeItem("driveeasy-featured-vehicles");
+      localStorage.removeItem("driveeasy-vehicles-all");
+      localStorage.removeItem("driveeasy-vehicles-rent");
+      localStorage.removeItem("driveeasy-vehicles-sale");
     }
     // Fire server signOut in background — don't await
     supabase.auth.signOut().catch(() => {});

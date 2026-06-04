@@ -341,12 +341,15 @@ export default function VehicleDetailPage() {
   const [verGate, setVerGate] = useState<{ missing: string[] } | null>(null);
 
   useEffect(() => {
+    // Load data immediately — don't block on auth check
+    loadVehicle();
+    loadReviews();
+    // Check session in parallel
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.push("/login"); return; }
-      loadVehicle();
-      loadReviews();
+      if (!session) { router.push("/login"); }
     });
-  }, [vehicleId, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleId]);
 
   const loadVehicle = async () => {
     setLoading(true);
