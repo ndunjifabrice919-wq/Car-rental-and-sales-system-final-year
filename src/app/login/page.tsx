@@ -33,14 +33,13 @@ export default function LoginPage() {
   const [otpCode, setOtpCode]           = useState("");             // the code user types
   const [generatedCode, setGeneratedCode] = useState("");           // the code we generated
   const [otpUserName, setOtpUserName]   = useState("");
-  const [devFallback, setDevFallback]   = useState(false);          // EmailJS not configured
-  const [devCode, setDevCode]           = useState("");             // code shown in dev banner
+  const [devFallback, setDevFallback]   = useState(false);          // EmailJS failed/slow
+  const [devCode, setDevCode]           = useState("");             // code shown in fallback
   const [otpError, setOtpError]         = useState("");
   const [otpLoading, setOtpLoading]     = useState(false);
   const [resending, setResending]       = useState(false);
   const [secondsLeft, setSecondsLeft]   = useState(600);            // 10-minute expiry
   const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const sessionRef = useRef<any>(null);                             // holds the supabase session
 
   // ── Redirect already-logged-in users ────────────────────────
   useEffect(() => {
@@ -111,14 +110,12 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ Password verified — save session reference, sign out temporarily,
-      //    then send OTP before granting full access.
-      sessionRef.current = data.session;
+      // ✅ Password verified — sign out temporarily, send OTP
       const userName = data.user.user_metadata?.full_name || data.user.email?.split("@")[0] || "User";
       setOtpUserName(userName);
 
-      // Sign out so they don't have a session until OTP is verified
-      await supabase.auth.signOut();
+      // Sign out in background (non-blocking) before OTP step
+      supabase.auth.signOut().catch(() => {});
 
       await triggerOTP(email.trim().toLowerCase(), userName);
       setLoading(false);
@@ -130,7 +127,7 @@ export default function LoginPage() {
     }
   };
 
-  // ── Send/Resend OTP ─────────────────────────────────────────
+  // ── Send/Resend OTP (with timeout so it never hangs forever) ──
   const triggerOTP = async (userEmail: string, userName: string) => {
     const code = generateCode();
     setGeneratedCode(code);
@@ -138,10 +135,20 @@ export default function LoginPage() {
     setOtpError("");
     startTimer();
 
-    const sent = await emailVerificationCode({ userEmail, userName, code });
+    // Race EmailJS against a 8-second timeout
+    let sent = false;
+    try {
+      const result = await Promise.race([
+        emailVerificationCode({ userEmail, userName, code }),
+        new Promise<boolean>(resolve => setTimeout(() => resolve(false), 8000)),
+      ]);
+      sent = result;
+    } catch {
+      sent = false;
+    }
 
     if (!sent) {
-      // EmailJS not configured — dev fallback
+      // EmailJS failed or timed out — show code on screen so login still works
       setDevFallback(true);
       setDevCode(code);
     } else {
@@ -264,23 +271,20 @@ export default function LoginPage() {
             <h1 className="auth-title" style={{ marginBottom: "6px" }}>Two-Step Verification</h1>
             <p className="auth-subtitle">
               {devFallback
-                ? "Configure EmailJS to receive codes by email. For now, use the code below."
+                ? "Email could not be sent — use the code shown below instead."
                 : <>We sent a 6-digit code to <strong style={{ color: "var(--white-soft)" }}>{email}</strong></>
               }
             </p>
           </div>
 
-          {/* ── Developer Fallback Banner ── */}
+          {/* ── Developer / Fallback Banner ── */}
           {devFallback && (
             <div style={{
               background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.35)",
               borderRadius: "14px", padding: "16px 18px", marginBottom: "20px",
             }}>
               <p style={{ fontWeight: 700, color: "#fbbf24", margin: "0 0 6px", fontSize: "0.85rem" }}>
-                ⚠️ Developer Mode — EmailJS not configured
-              </p>
-              <p style={{ color: "var(--white-muted)", margin: "0 0 10px", fontSize: "0.8rem" }}>
-                Configure <code>NEXT_PUBLIC_EMAILJS_*</code> keys in <code>.env.local</code> to send real emails. Your test code is:
+                ⚠️ Email could not be sent — use this code to sign in:
               </p>
               <div style={{
                 background: "rgba(251,191,36,0.12)", borderRadius: "10px",
@@ -288,6 +292,9 @@ export default function LoginPage() {
                 fontFamily: "monospace", fontSize: "2rem", fontWeight: 900,
                 letterSpacing: "0.3em", color: "#fbbf24",
               }}>{devCode}</div>
+              <p style={{ color: "var(--white-muted)", margin: "10px 0 0", fontSize: "0.78rem" }}>
+                Copy this code and paste it in the field below.
+              </p>
             </div>
           )}
 
